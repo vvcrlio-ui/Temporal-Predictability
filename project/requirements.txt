@@ -1,0 +1,8 @@
+# Temporal FFCWS project dependencies.
+#
+# The N x K sweep engine is developed in a separate repository and consumed here
+# as a pinned Git dependency. Update the commit deliberately: changing it can
+# change engine behaviour, and TESTS.md#verification-baselines must be re-run.
+aleatoric-nk-grid[models,parquet] @ git+https://github.com/vvcrlio-ui/Aleatoric_Luck.git@19890d302f0b5ab0917e991f3ed3f55be3d9bcb1#subdirectory=NK_Grid
+
+pytest>=8,<10

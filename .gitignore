@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+.vscode/
+.idea/
+*~
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Private data and generated analysis products.
+# FFCWS microdata is governed by a data use agreement and must never be committed.
+project/data/*
+!project/data/.gitkeep
+project/outputs/*
+!project/outputs/.gitkeep
+
+# Logs
+*.log
+*.out
+*.err
+
+# Env / secrets
+.env
+.env.*
