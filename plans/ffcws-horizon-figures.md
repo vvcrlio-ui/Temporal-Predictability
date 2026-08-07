@@ -16,8 +16,15 @@ A（波次切分）、B（panel 配置）、C（`learning_curve.py`）仍完全�
 
 **目标分支：`codex/ffcws-gpa-horizon-demo`**（与被依赖方案同一分支，不另起新分支）。
 
-基线：`main @ 19890d3`。开工前必须在该版本上实跑一次 `pytest -q`，并把
-结果补进 `TESTS.md#verification-baselines`；不得沿用其他提交的测试计数。
+> **仓库归属说明**：本方案与 `ffcws-gpa-horizon-demo.md` 同属本仓库
+> （`vvcrlio-ui/Temporal-Predictability`）。`aleatoric_nk_grid` 引擎是
+> **外部 pip 依赖**，由 `project/requirements.txt` 固定到
+> `vvcrlio-ui/Aleatoric_Luck@19890d3` 的 `NK_Grid` 子目录，**其源码不在本仓库内**。
+> 本文档下文若出现引擎模块名，指的都是该已安装的包，不是本仓库目录。
+
+基线：以被依赖方案（`ffcws-gpa-horizon-demo.md`）实际实施时记入
+`TESTS.md#verification-baselines` 的基线为准；本方案与其共用分支，不单独重跑基线，
+但交付前必须复跑一次标准命令并追加记录。
 
 ## 为什么要有这一步
 
@@ -54,28 +61,30 @@ A（波次切分）、B（panel 配置）、C（`learning_curve.py`）仍完全�
 
 **Out of scope**
 
-- **不改引擎**（`NK_Grid/` 下 diff 必须为 0）。
+- **不改引擎**：`aleatoric_nk_grid` 是外部 pip 依赖，不得以任何方式就地编辑
+  （包括改动其安装目录、或修改 `Aleatoric_Luck` 本机 checkout）。
 - **不改** `ffcws-gpa-horizon-demo` 的 A/B/C：不动 adapter 的波次切分、
   不动 panel 配置、**不动 `learning_curve.py` 的拟合逻辑**。
-  若发现拟合层缺了本方案需要的输出字段，写进报告第 5 节提问，不要自行加。
+  若发现拟合层缺了本方案需要的输出字段，作为待澄清问题提出，不要自行加。
 - 不做交互式图、不做网页。
 - 不做 SES 分层图（那是 demo 之后的事）。
 - 不做 GPA 以外的结果。
-- **不把绘图通用化进 `NK_Grid/`。**
+- **不把绘图逻辑推进外部引擎包。**
 
 ## 🔒 通用引擎约束在本方案中的落点
 
 绘图脚本全部位于 `project/figures/`，**允许**出现 `wave`、`landmark`、波次数字——
-它们是 FFCWS 的数据集事实，本来就该留在 article 目录里。
+它们是 FFCWS 的数据集事实，本来就该留在本项目内。
 
-作为交换，硬约束是：`git diff main -- NK_Grid/` 必须为空。本方案不新增、
+作为交换，硬约束是：`project/requirements.txt` 里固定的引擎版本不得改动，
+`Aleatoric_Luck` 本机 checkout 不得出现任何未提交修改。本方案不新增、
 不修改引擎侧任何文件。
 
 ## 输入契约
 
 ### 来源一：引擎输出 CSV
 
-`project/outputs/nk_grid_*.csv`。实测列名（`main @ 19890d3`）中本方案消费这些：
+`project/outputs/nk_grid_*.csv`。实测列名（引擎 `19890d3`）中本方案消费这些：
 
 `dataset, model, seed, draw, N, K, r2_test, rmse, n_test_total,
 status, constant_prediction, underdetermined, converged`
@@ -98,10 +107,11 @@ status, constant_prediction, underdetermined, converged`
    拟合与绘图；其占比必须出现在图注和报告里。
 3. 对每个 `(dataset, model, K, N)`，取跨 `seed` × `draw` 的**中位数**作为该点的观测值。
    这必须与 `learning_curve.py` §C1 的口径完全一致——**若不一致，图和拟合会对不上，
-   属于必须阻断的错误**，写进报告第 5 节。
+   属于必须阻断的错误**，作为待澄清问题记入 `reports/ffcws-gpa-horizon-demo.md`。
 4. 归一化口径：`ffcws-gpa-horizon-demo` §C5 要求 `Û = ε̂²∞ / Var(Y_test)`。
-   注意引擎的 `r2_test` 用的是**训练集均值零模型**（`evaluation.py:20`
-   `r2_against_training_mean`），与 `Var(Y_test)` 不是同一个分母。
+   注意引擎的 `r2_test` 用的是**训练集均值零模型**
+   （`aleatoric_nk_grid.evaluation.r2_against_training_mean`），
+   与 `Var(Y_test)` 不是同一个分母。
    **两条路都要算，并在 CSV 中各占一列**：
    - `u_from_asymptote` = `ε̂²∞ / Var(Y_test)`（主口径，对齐 van de Rijt）
    - `u_from_r2` = 由 `1 − r2_test` 拟合得到的渐近线（对照口径）
@@ -192,8 +202,13 @@ project/outputs/figures/
   fig3_surface.(png|svg)
   figure_data.csv             三张图用到的全部数值
   rank_flip.csv
-reports/ffcws-gpa-horizon-demo.md   追加「图与判读」一节
+reports/ffcws-gpa-horizon-demo.md   仓库根目录，追加「图与判读」一节
 ```
+
+`reports/` 位于仓库根目录，与 `plans/` 平级，纳入版本控制：它是研究交付物与
+判读记录，不是运行期产物，因此不受「业务文件必须位于 `project/`」的约束
+（见 `ARCHITECTURE.md#3-module-boundaries`）。运行期产物一律写入
+`project/outputs/`，该目录被 `.gitignore` 排除。
 
 `figure_data.csv` 至少含：
 `landmark, landmark_age, model_or_envelope, K_arm, N, mse_median, n_cells,
@@ -203,7 +218,8 @@ monotonized, excluded_cell_ratio`
 
 ## 验收标准
 
-1. `git diff main -- NK_Grid/` 为空。
+1. 外部引擎未被改动：`project/requirements.txt` 中固定的引擎版本与开工前一致，
+   且 `Aleatoric_Luck` 本机 checkout 的 `git status` 干净（报告中给出输出作为证据）。
 2. 在 `project/` 中运行 `python figures/make_all.py --config figures/config.yaml`
    在**合成输入**上端到端跑通，退出码 0，"产出"一节列出的全部文件生成且非空。
 3. 三张图中的每一个数值，都能在 `figure_data.csv` 中找到同值的一行（抽查即可，
@@ -213,7 +229,7 @@ monotonized, excluded_cell_ratio`
    与图注中。
 5. 聚合口径与 `learning_curve.py` 一致：存在一个测试，用同一份合成输入分别过
    `transform.py` 与 `learning_curve.py` 的聚合入口，断言逐点相等。
-   若 `learning_curve.py` 未暴露可调用的聚合入口，写进报告第 5 节，
+   若 `learning_curve.py` 未暴露可调用的聚合入口，作为待澄清问题记入报告，
    **不要自己在 figures 侧复制一份实现**。
 6. `u_from_asymptote` 与 `u_from_r2` 两列都存在且都非空；两者的差在报告中给出。
 7. `rank_flip.csv` 存在，五档齐全，`flipped` 列在两种情况下都被正确填写。
@@ -225,7 +241,8 @@ monotonized, excluded_cell_ratio`
 10. 图 3 的图注文本中包含"不含不确定性"与"判读以图 1 为准"两项声明。
 11. 图 1 中每个面板都标出了最后一个实测点到渐近线的落差数值。
 12. 所有图的横轴标注为孩子年龄（0/1/3/5/9 岁），不出现内部波次编号。
-13. `.venv/bin/python -m pytest -q` 通过，计数不低于 `main @ 19890d3` 的实测基线
+13. 在 `project/` 中运行 `python -m pytest -q` 通过，计数不低于
+    `TESTS.md#verification-baselines` 中被依赖方案交付时记录的基线，
     加上本方案新增的测试数。
 
 ## 测试要求
@@ -251,7 +268,7 @@ monotonized, excluded_cell_ratio`
 
 ## 留给人工决定的（不要自己猜）
 
-1. **图 3 的高度用 MSE 还是 Û** —— 配置项已留，默认值写进报告第 5 节提问。
+1. **图 3 的高度用 MSE 还是 Û** —— 配置项已留，默认值作为待澄清问题提出。
 2. **`extrapolation_max_rel_dev` 的 0.20** 是拍的，等图 1 出来后按实际偏差分布调。
 3. **图 2 中五档的区间若严重重叠**，是否改为只出图 3 —— 等真实区间宽度出来再定。
 4. 图的最终配色与出版尺寸。

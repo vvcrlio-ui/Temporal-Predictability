@@ -13,16 +13,16 @@ status: ready-for-codex
 Aleatoric_Luck 仓库，与本仓库无关）。
 
 > **仓库归属说明(2026-08-07)**：本方案原写于 `Aleatoric_Luck` 仓库，现独立到
-> `Temporal FFCWS` 仓库。**`NK_Grid` 与 `Adapter` 不在本仓库内**，是通过
-> `pip install -e` 指向 `Aleatoric_Luck` 本机 checkout 的外部依赖（见
-> `project/` 内后续补充的依赖清单）。本文档以下所有对 `NK_Grid/` 路径的引用，指的都是
-> 该外部安装的包，**不是本仓库的目录**——本仓库里不存在、也不应该出现
-> `NK_Grid/` 或 `Adapter/` 目录。凡涉及"改引擎"的边界，一律理解为
-> "不得编辑 `Aleatoric_Luck` checkout 路径下的任何文件"，而不是"某个子目录的
-> git diff 为空"（本仓库结构上就不可能碰到那些文件）。
+> `vvcrlio-ui/Temporal-Predictability`。**引擎源码不在本仓库内**：
+> `aleatoric_nk_grid` 由 `project/requirements.txt` 固定到
+> `vvcrlio-ui/Aleatoric_Luck@19890d3` 的 `NK_Grid` 子目录，作为普通 pip 依赖安装。
+> 本文档下文若出现引擎模块名，指的都是该已安装的包，**不是本仓库的目录**。
+> 凡涉及"改引擎"的边界，一律理解为"不得改动固定的引擎 commit，也不得就地编辑
+> 已安装的包或 `Aleatoric_Luck` 本机 checkout"。
 
-基线：本仓库全新初始化，无历史提交，无既有测试基线。开工前先跑一次
-`pytest -q`，把实际结果记入 `TESTS.md#verification-baselines`，不得预设测试数为 0。
+基线：`main @ 891f652` — `../.venv/bin/python -m pytest -q` → **10 passed**
+（已记入 `TESTS.md#verification-baselines`，无需重跑）。若开工时 `main` 已推进，
+在新版本上实跑一次并追加记录。
 
 ## 为什么要有这一步
 
@@ -51,7 +51,7 @@ Salganik et al. (2020) 的锦标赛只提供了那一个上界。
 ## 目标
 
 1. 让 FFCWS adapter 能按采集波次产出**严格嵌套**的五套 schema（不改引擎）。
-2. 在这五套 schema 上跑 NK_Grid，得到每档的 (N, K) 误差网格。
+2. 在这五套 schema 上跑外部 N×K 引擎，得到每档的 (N, K) 误差网格。
 3. 新增一个 **article-agnostic** 的学习曲线渐近线估计模块，把网格化成五个
    带区间的标量。
 4. 产出一张图 + 一份数值表 + 一份方法说明。
@@ -63,9 +63,9 @@ Salganik et al. (2020) 的锦标赛只提供了那一个上界。
 - FFCWS adapter：从 manifest 的 `source_column` 确定性导出波次标签，
   按波次产出五套嵌套 schema + feature universe。
 - `project/panels.landmark.yaml`：五个 landmark × GPA 的 panel 配置。
-- NK_Grid 新增模块 `learning_curve.py`：从引擎输出的 (N, error) 拟合
+- 本仓库新增模块 `project/analysis/learning_curve.py`：从引擎输出的 (N, error) 拟合
   带渐近项的曲线，输出渐近线点估计 + bootstrap 区间 + 外推自检。
-- 绘图与数值表脚本（放 `project/`，不进引擎）。
+- 绘图与数值表脚本（放 `project/figures/`，不进引擎）——**详见 `plans/ffcws-horizon-figures.md`，本方案 §D 已被其取代**。
 
 **Out of scope**
 
@@ -75,9 +75,9 @@ Salganik et al. (2020) 的锦标赛只提供了那一个上界。
 - **不做**因果事件研究的下界。
 - **不做**三套插补策略的比较：本 demo 固定 `median_mode` 一套。
 - **不动引擎的抽样、切分、预处理、模型逻辑**。
-- **不编辑 `NK_Grid`/`Adapter` 的任何源码**——它们不在本仓库内（见上方仓库
-  归属说明）。`learning_curve.py` 落在本仓库 `project/analysis/` 下（见 §C 开头
-  的路径变更），是纯新增的下游分析层，只通过公开 API
+- **不编辑引擎源码**——它作为固定 commit 的 pip 依赖安装，不在本仓库内
+  （见上方仓库归属说明）。`learning_curve.py` 落在本仓库 `project/analysis/` 下
+  （见 §C 开头的路径变更），是纯新增的下游分析层，只通过公开 API
   （`canonical_feature_universe()` 等）与 CSV 输出与引擎交互，不 import 其
   内部私有符号。
 
@@ -160,7 +160,7 @@ ARD 表本身**不复制**：五档共用同一份 `data.parquet` / `test.parque
 
 ### C. 渐近线估计（`project/analysis/learning_curve.py`，本仓库内新增）
 
-> 原方案把这个模块放在 `NK_Grid/` 包内部；现在引擎是外部依赖，模块改放本仓库
+> 原方案把这个模块放在引擎包内部；现在引擎是外部依赖，模块改放本仓库
 > 自己的 `project/analysis/` 下。功能不变——它本来就只读 `(N, error)` 数值，
 > 不依赖引擎内部实现，搬家不影响 C1–C5 的任何逻辑。
 
@@ -228,11 +228,10 @@ $$\text{err}(N) = \varepsilon^2_\infty + a \cdot N^{-b}, \qquad a>0,\ b>0,\ \var
 
 逐条可核查：
 
-1. 本仓库不存在 `NK_Grid/` 或 `Adapter/` 目录（引擎是外部依赖，见开头仓库归属
-   说明）；`Aleatoric_Luck` checkout 路径下没有任何文件被修改（报告里给出该
-   checkout 在开工前后的 `git status` 对比作为证据）。若 panel 层 `n_grid`/`k_grid`
-   透传确需触及该 checkout 内的代码，须在报告里单列并说明为何通用、以及这属于
-   跨仓库改动、需要另行确认。
+1. 外部引擎未被改动：`project/requirements.txt` 中固定的引擎 commit 与开工前一致，
+   且 `Aleatoric_Luck` 本机 checkout 的 `git status` 干净（报告里给出输出作为证据）。
+   若 panel 层 `n_grid`/`k_grid` 透传确需修改引擎代码，须作为待澄清问题单列，
+   说明为何通用、以及这属于跨仓库改动、需要另行确认——**不得在本工作包内擅自进行**。
 2. 五套 schema 的 predictor 集合**严格嵌套**：
    $P_0 \subsetneq P_1 \subsetneq P_3 \subsetneq P_5 \subsetneq P_9$。
 3. **无越界**：第 $t$ 档的 predictor 中，采集波次 $> t$ 的列数为 **0**。
@@ -267,13 +266,18 @@ adapter 侧：
 8. 真实 FFCWS 只作为一条回归检查出现：断言嵌套与无越界成立，
    **不断言具体列数**。
 
-跑通本仓库自己的 `.venv/bin/python -m pytest -q`（依赖清单须位于 `project/`
-安装，内含指向 `Aleatoric_Luck` 本机路径的可编辑安装，见开头仓库归属说明）。
-本仓库无历史基线，开工前先跑一次记录起点，补进
-`TESTS.md#verification-baselines`。
+测试用 pytest 写法（参数化一律用 `@pytest.mark.parametrize`）。从 `project/` 跑
+`../.venv/bin/python -m pytest -q`，通过数不低于基线 10 加本方案新增的测试数；
+标准命令见 `TESTS.md#standard-commands`。
 
 ## 留给人工决定的（不要自己猜）
 
-- `n_grid` / `k_grid` 的具体取值：写进报告第 5 节提问，等确认后再跑正式网格。
+- `n_grid` / `k_grid` 的具体取值：作为待澄清问题提出（见下），等确认后再跑正式网格。
   开发期用小网格自测即可。
+
+> **待澄清问题写在哪**：本仓库的 `AGENTS.md#response-contract` 没有"待澄清问题"
+> 这一项（第 5 项是「文档更新建议区块」，语义不同）。本方案约定：实施中遇到的
+> 歧义、二选一和方案与代码现状不符之处，一律写入
+> `reports/ffcws-gpa-horizon-demo.md` 的「待澄清问题」小节，并在最终回复的
+> 「风险或限制」一节点名。**不得自行猜测后默默实现。**
 - `preset` 与算力预算。

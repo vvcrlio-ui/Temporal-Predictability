@@ -96,8 +96,11 @@ U(t,s)=\frac{\mathbb{E}[\operatorname{Var}(Y_s\mid H_{\le t})]}{\operatorname{Va
 - `.system/SYSTEM_PROMPT.md`：跨平台复用的详细 SDD 方法论。
 - `project/`：可运行的 FFCWS 数据适配器、配置、schema 和测试。
 - `plans/`：当前 demo、图形层和长期扩展的详细设计附件。
+- `reports/`：研究交付物、方法说明与判读记录。
 - `ARCHITECTURE.md`：代码边界、依赖规则和不可违反的数据契约。
 - `ROADMAP.md`：从 demo 到多结果研究和后续扩展的实施顺序。
 - `TESTS.md`：质量门槛和研究设计验证要求。
 
-现有代码已经能够为六个年龄 15 结果生成三种预测变量表示，但按波次构造信息集、联合 N–K 规模路径、学习曲线分析和研究图形仍属于后续实现工作。运行方式见 [`project/README.md`](project/README.md)。
+现有代码已经能够为六个年龄 15 结果生成三种预测变量表示，但按波次构造信息集、联合 N–K 规模路径、学习曲线分析和研究图形仍属于后续实现工作。
+
+N×K 扫描引擎 `aleatoric_nk_grid` 作为外部依赖，由 [`project/requirements.txt`](project/requirements.txt) 固定到具体 commit，其源码不在本仓库内。运行方式见 [`project/README.md`](project/README.md)。

@@ -16,7 +16,7 @@
 - 联合数据规模轴上的每个档位必须显式记录对应的 `(N, K)`；不得把联动轴误标为单独的 N 效应或 K 效应。
 - 联合 N–K 路径用于描述数据资源整体扩展；若要解释 N、K 的独立作用或估计固定信息集的渐近误差，必须保留固定 K、固定 N 或 matched-K 诊断切片。
 - 原始私有数据和生成的 ARD 表不得写入版本化 schema 文件。
-- 所有运行所需业务文件必须位于 `project/`；项目运行不得读取根目录 SDD 文档。
+- 所有运行所需业务文件必须位于 `project/`；项目运行不得读取根目录 SDD 文档或 `reports/`。
 
 ## 3. Module Boundaries
 
@@ -27,8 +27,20 @@
 | `project/src/ffcws_data_processor/strategies` | 三种 FFCWS 特征表示 | `common` 的公开对象 | 引擎内部实现、测试集驱动的 schema 决策 |
 | `project/src/ffcws_data_processor/contract.py` | 生成外部引擎 schema 与 feature universe | `common`、公开的 `aleatoric_nk_grid` API | 外部引擎私有符号 |
 | `project/src/ffcws_data_processor/pipeline.py` | 编排读取、编码、验证和产物写出 | 上述项目模块、公开的引擎验证 API | 绘图与下游结论逻辑 |
+| `project/analysis` | 学习曲线拟合、渐近线估计、外推自检与单调化 | 标准库、NumPy、SciPy、pandas | 引擎内部实现、FFCWS 专属的波次语义与列名 |
+| `project/figures` | 从数值产物生成研究图与判读表 | `project/analysis` 的公开输出、pandas、matplotlib | 重新拟合模型、复制 `analysis` 的统计估计逻辑 |
 | `project/tests` | 单元、契约和集成验证 | 项目公开接口、测试依赖 | 私有真实数据的强制依赖 |
 | `project/schema` | 可版本化的分析契约 | `project/data/ard` 的相对路径 | 嵌入原始或私有数据 |
+| `reports/`（仓库根目录） | 研究交付物、方法说明与判读记录 | 无代码依赖 | 被 `project/` 运行时代码导入或读取 |
+
+`project/analysis` 必须保持 article-agnostic：输入是"一列 N、一列误差、可选分组列"，
+对任意来源的网格都成立，不得引用 FFCWS 的列数、行数或档位数量。FFCWS 特有的波次
+语义只允许出现在 `project/src/ffcws_data_processor/` 与 `project/figures/`。
+
+`reports/` 是本仓库唯一位于 `project/` 之外的非控制文档目录。它保存研究交付物而非
+运行期产物，因此不受 §2 中"所有运行所需业务文件必须位于 `project/`"的约束——该约束
+针对的是运行时依赖。运行期生成的图、表和日志一律写入 `project/outputs/`（已被
+`.gitignore` 排除）。
 
 ## 4. Dependency Rules
 
@@ -76,10 +88,15 @@
 ### ADR-002：外部 N×K 引擎
 
 - 状态：Accepted
-- 背景：通用 `aleatoric_nk_grid` 引擎由另一个 checkout 提供。
+- 背景：通用 `aleatoric_nk_grid` 引擎由另一个仓库提供。
 - 决策：本项目只通过公开 Python API 与文件契约消费该引擎，不复制或修改引擎源码。
-- 后果：本项目需要独立、可版本化的依赖声明；该声明目前仍待补充。
+  依赖声明为 `project/requirements.txt` 中固定到具体 commit 的 Git 依赖
+  （`vvcrlio-ui/Aleatoric_Luck@19890d3`，`subdirectory=NK_Grid`）。
+- 后果：升级引擎必须显式改动该 commit 并重跑
+  `TESTS.md#verification-baselines`，因为引擎行为变化会改变数值结果。
+  不得使用可变引用（分支名、`main`）以免结果不可复现。
 - 替代方案：将引擎代码复制进本仓库；因重复维护和边界混乱而拒绝。
+  指向本机路径的可编辑安装；因不可移植、不可复现而拒绝。
 
 ### ADR-003：训练样本决定特征契约
 

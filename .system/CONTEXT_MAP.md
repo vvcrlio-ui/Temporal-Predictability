@@ -3,10 +3,10 @@
 ## Project Summary
 
 - 项目名称：Temporal FFCWS / Fragile Families Challenge application
-- 核心目标：评估从出生至 9 岁的信息对 15 岁结果的可预测性，并研究预测表现随样本量（N）、预测变量数（K）和信息截止波次的变化。
-- 当前阶段：数据适配器已存在；GPA horizon demo 与绘图层已完成设计、等待实施。
+- 核心目标：为每个结果变量构建「联合数据规模（N 与 K 联动）× 观察波次 × 样本外预测表现」曲面，并以固定条件诊断切片和经验证的学习曲线渐近线估计不可预测性上界。当前 GPA/年龄 15 设计只是第一阶段方法 demo，完整定义见 `README.md`。
+- 当前阶段：数据适配器与依赖环境已就绪（基线 10 passed）；GPA horizon demo 与绘图层已完成设计、等待实施。
 - 主要技术栈：Python、pandas、NumPy、PyYAML，以及外部安装的 `aleatoric_nk_grid`。
-- 默认开发分支：当前工作区尚未初始化 Git，未定义默认分支。
+- 默认开发分支：`main`（远程 `origin` = https://github.com/vvcrlio-ui/Temporal-Predictability.git）。工作包在 `codex/<slug>` 分支上进行。
 
 ## Workspace Layout
 
@@ -15,6 +15,7 @@
 - Claude Code 自动入口：`./CLAUDE.md`
 - 跨平台 SDD 方法论：`./.system/SYSTEM_PROMPT.md`
 - 实际项目目录：`./project/`
+- 研究交付物与判读记录：`./reports/`
 - 源代码目录：`./project/src/`
 - 测试目录：`./project/tests/`
 - 项目命令执行目录：`./project/`
@@ -57,16 +58,16 @@
 
 以下命令均从 `project/` 执行：
 
-- 安装依赖：尚无版本化依赖清单；不得猜测命令
-- 运行适配器：`python adapter.py`
+- 安装依赖：`../.venv/bin/python -m pip install -r requirements.txt`
+- 运行适配器：`../.venv/bin/python adapter.py`
 - 类型检查：尚未配置
-- 单元与集成测试：`python -m unittest discover -s tests`
-- 编译检查：`python -m compileall -q adapter.py src tests`
-- Panel 配置预检：`aleatoric-nk-grid-panels --manifest panels.yaml --dry-run`
+- 单元与集成测试：`../.venv/bin/python -m pytest -q`（标准口径，见 `TESTS.md#standard-commands`）
+- 编译检查：`../.venv/bin/python -m compileall -q adapter.py src tests`
+- Panel 配置预检：`../.venv/bin/aleatoric-nk-grid-panels --manifest panels.yaml --dry-run`
 - 构建：不适用，当前为 Python 分析项目
 
 ## Known Constraints
 
-- `aleatoric_nk_grid` 是外部安装依赖，当前工作区没有版本化依赖清单。
+- `aleatoric_nk_grid` 是外部依赖，由 `project/requirements.txt` 固定到 `vvcrlio-ui/Aleatoric_Luck@19890d3` 的 `NK_Grid` 子目录；升级该 commit 必须重跑基线。
 - 完整适配器运行需要用户提供的 FFCWS 私有数据，文件位于 `project/data/private/`。
-- 当前工作区没有 Git 元数据，无法用版本控制命令核验迁移差异。
+- 完整 N×K 网格运行的算力预算尚未评估；`preset` 从 `medium` 起步。

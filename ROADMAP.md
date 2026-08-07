@@ -28,6 +28,7 @@
   - `project/tests/`
   - `project/panels.landmark.yaml`
   - `project/analysis/`
+  - `reports/ffcws-gpa-horizon-demo.md`
 - 非目标：
   - 不修改外部 N×K 引擎源码
   - 不扩展到 GPA 以外的 outcome
@@ -41,7 +42,7 @@
   - [ ] 产出数值表、诊断和方法说明
   - [ ] `TESTS.md` 中对应验证通过
 - 风险：学习曲线尾部可能不足以支持可信外推；此时必须触发降级报告，不得强行给出结论。
-- 阻塞项：开始实施前，需确认外部依赖可用并补齐项目依赖声明。
+- 阻塞项：无。外部依赖已由 `project/requirements.txt` 固定并验证可安装，基线 `main @ 891f652` = 10 passed。
 
 ## Backlog
 
@@ -84,4 +85,4 @@
 - 状态：Done
 - 实际变更：将原 `FFCWS/` 迁移为 `project/`，统一 `src/`、`tests/`、`config/` 入口，并建立 SDD 控制文档。
 - 验收结果：根目录边界与旧路径审计通过；配置路径解析到 `project/data/` 和 `project/schema/`；Python 编译检查通过；现有 10 项测试在已安装外部依赖的环境中通过。
-- 剩余问题：项目尚无版本化依赖清单，工作区尚未初始化 Git。
+- 剩余问题：已解决 —— 依赖清单为 `project/requirements.txt`（固定引擎 commit），工作区已初始化 Git 并接入 `origin`。

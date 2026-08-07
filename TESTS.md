@@ -33,21 +33,28 @@
 
 ## Standard Commands
 
-所有命令从 `project/` 执行：
+所有命令从 `project/` 执行，使用仓库根目录的 `.venv`：
 
 ```sh
-# Python 编译检查
-python -m compileall -q adapter.py src tests
+# 安装依赖（含固定到具体 commit 的外部 N×K 引擎）
+../.venv/bin/python -m pip install -r requirements.txt
 
-# 当前单元与集成测试
-python -m unittest discover -s tests
+# 单元与集成测试（标准口径）
+../.venv/bin/python -m pytest -q
+
+# Python 编译检查
+../.venv/bin/python -m compileall -q adapter.py src tests
 
 # Panel 配置预检（需要外部引擎 CLI）
-aleatoric-nk-grid-panels --manifest panels.yaml --dry-run
+../.venv/bin/aleatoric-nk-grid-panels --manifest panels.yaml --dry-run
 
 # 完整适配器（需要 project/data/private/ 中的授权数据）
-python adapter.py
+../.venv/bin/python adapter.py
 ```
+
+测试框架为 **pytest**。现有测试是 unittest 风格，pytest 可直接收集，两种口径计数一致；
+新增测试一律用 pytest 写法——两份方案大量要求"参数化生成"，需要
+`@pytest.mark.parametrize`。不再以 `python -m unittest discover` 作为标准命令。
 
 当前未配置静态类型检查器、formatter、独立 E2E runner 或完整验证聚合命令。引入相应工具时，必须把配置和依赖放在 `project/` 并更新本节。
 
@@ -57,9 +64,12 @@ python adapter.py
 
 | 日期 | 代码版本 | 环境 | 命令 | 结果 |
 |---|---|---|---|---|
-| 2026-08-07 | 工作区未初始化 Git | 已安装 `aleatoric_nk_grid` 的 Aleatoric 虚拟环境 | `python -m unittest discover -s tests` | 10 项通过 |
+| 2026-08-07 | 工作区未初始化 Git | 借用 Aleatoric 虚拟环境 | `python -m unittest discover -s tests` | 10 项通过（历史记录，口径已废弃） |
+| 2026-08-07 | `main @ 891f652` | 本仓库 `.venv`，`requirements.txt` 固定引擎 `19890d3`，Python 3.14 / macOS arm64 | `../.venv/bin/python -m pytest -q` | **10 passed（37.7s 首跑 / 2.8s 复跑）** |
 
-新工作包开工前若计划指定了目标提交或分支，应在该版本上实跑标准命令并追加记录；不得沿用其他仓库或其他提交的测试计数。
+`891f652` 是 Horizon demo 与图层两份方案的开工基线。
+
+新工作包开工前若计划指定了目标提交或分支，应在该版本上实跑标准命令并追加记录；不得沿用其他仓库或其他提交的测试计数。升级 `requirements.txt` 中固定的引擎 commit 后必须重跑并追加新行——引擎行为变化会改变数值结果。
 
 ## Current Coverage
 

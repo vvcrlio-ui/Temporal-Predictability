@@ -73,6 +73,7 @@ project/
 │   └── ard/            generated analysis-ready data; excluded from Git
 ├── panels.yaml
 ├── model_params.yaml
+├── requirements.txt
 ├── ADAPTER.md
 └── README.md
 ```
@@ -80,12 +81,15 @@ project/
 Run project commands from `project/`:
 
 ```bash
-python adapter.py
-python -m unittest discover -s tests
-aleatoric-nk-grid-panels --manifest panels.yaml --dry-run
+../.venv/bin/python -m pip install -r requirements.txt
+../.venv/bin/python adapter.py
+../.venv/bin/python -m pytest -q
+../.venv/bin/aleatoric-nk-grid-panels --manifest panels.yaml --dry-run
 ```
 
-The project currently relies on an externally installed `aleatoric_nk_grid`
-package; dependency installation is not yet captured by a versioned manifest.
-See the [FFCWS data-preparation guide](ADAPTER.md) for representation and
-validation details.
+The N x K sweep engine is an external dependency pinned to a specific commit in
+[`requirements.txt`](requirements.txt); changing that commit can change numerical
+results and requires re-running the baseline recorded in
+[`TESTS.md`](../TESTS.md). See the
+[FFCWS data-preparation guide](ADAPTER.md) for representation and validation
+details.
