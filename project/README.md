@@ -41,13 +41,17 @@ age-15 outcomes. Predictor eligibility, categorical value sets, and
 prevalence-based screening are determined using the predefined training sample
 only. The test sample is reserved for evaluating predictive performance.
 
-The analysis compares three representations of the same source information:
+Three representations of the same source information are implemented. **Only
+`median_mode` is currently enabled** in `config/ffc.yaml`. The other two are
+retained for the representation-robustness question (research question 5 in the
+repository README) and are re-enabled by adding them back to the `strategies`
+list and re-running the adapter — no code change is required.
 
-| Representation | Configuration ID | Treatment of categorical values and missing information |
-|---|---|---|
-| One-hot representation with within-sample imputation | `median_mode` | Categorical variables are represented by grouped indicator columns; missing values are imputed using the selected training sample |
-| One-hot representation with missingness indicators | `median_missing_indicator` | Adds screened binary indicators that record whether a source value is missing |
-| Ordinal representation for categorical variables | `tree_ordinal` | Uses stable integer codes for categorical values; missing and previously unseen values remain missing |
+| Representation | Configuration ID | Enabled | Treatment of categorical values and missing information |
+|---|---|---|---|
+| One-hot representation with within-sample imputation | `median_mode` | **yes** | Categorical variables are represented by grouped indicator columns; missing values are imputed using the selected training sample |
+| One-hot representation with missingness indicators | `median_missing_indicator` | no | Adds screened binary indicators that record whether a source value is missing |
+| Ordinal representation for categorical variables | `tree_ordinal` | no | Uses stable integer codes for categorical values; missing and previously unseen values remain missing |
 
 Configuration IDs serve file names and commands. Research text uses the
 descriptive representation names in the first column.

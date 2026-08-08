@@ -19,10 +19,11 @@ outcomes:
   - layoff
   - jobTraining
 
+# 只启用一种特征表示。另外两种（median_missing_indicator、tree_ordinal）
+# 是根目录 README.md 研究问题 5「结论对分类编码与缺失表示是否稳健」的材料；
+# 需要时把它们加回本列表重跑 adapter 即可重新生成，不必改代码。
 strategies:
   - median_mode
-  - median_missing_indicator
-  - tree_ordinal
 
 missing_value_codes:
   - -9

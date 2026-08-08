@@ -57,7 +57,11 @@
 - 输入主键默认为 `challengeID`；背景、训练和测试表中的 ID 必须唯一，训练与测试 ID 必须互斥。
 - 缺失码固定为 `-9` 至 `-1`；配置若与代码契约不一致，适配器必须失败。
 - 当前 outcome 集合为 `gpa`、`grit`、`materialHardship`、`eviction`、`layoff` 和 `jobTraining`。
-- 当前表示策略为 `median_mode`、`median_missing_indicator` 和 `tree_ordinal`。
+- 当前**启用**的表示策略只有 `median_mode`。`median_missing_indicator` 与
+  `tree_ordinal` 的实现保留在 `strategies/` 下但未启用，属于 `README.md`
+  研究问题 5（表示稳健性）的后续材料；重新启用只需把它们加回
+  `config/ffc.yaml` 的 `strategies` 并重跑 adapter，不改代码。未启用时
+  `schema/` 下不应存在其对应的契约文件。
 - 输出 schema、feature universe、manifest 和 provenance 必须确定性生成，并使用相对路径连接生成数据。
 - 对 schema 或 manifest 的破坏性契约变更必须更新版本号并提供迁移说明。
 
