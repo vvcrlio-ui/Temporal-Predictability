@@ -102,9 +102,11 @@ status, constant_prediction, underdetermined, converged`
 
 ### 必须在脚本里完成的过滤与聚合（不是手工）
 
-1. 只保留 `status == "ok"` 的行。
-2. `constant_prediction` 或 `underdetermined` 为真的行**单独计数**，不进入任何
-   拟合与绘图；其占比必须出现在图注和报告里。
+1. **过滤不在本层实现。** 调用 `project/analysis/` 的公开入口（见
+   `ffcws-gpa-horizon-demo.md` §C0），由它剔除 `status != "ok"` 以及
+   `constant_prediction` / `underdetermined` 为真的行，并返回被排除的行数与占比。
+   图层把该占比填进 `excluded_cell_ratio` 与图注。
+2. **禁止在图层复制一份过滤逻辑**；若入口缺少所需参数，作为待澄清问题提出。
 3. 对每个 `(dataset, model, K, N)`，取跨 `seed` × `draw` 的**中位数**作为该点的观测值。
    这必须与 `learning_curve.py` §C1 的口径完全一致——**若不一致，图和拟合会对不上，
    属于必须阻断的错误**，作为待澄清问题记入 `reports/ffcws-gpa-horizon-demo.md`。
@@ -147,6 +149,11 @@ status, constant_prediction, underdetermined, converged`
   违反单调的档位必须在图上可辨认（不只在 CSV 里）
 - bootstrap 区间带
 - 图注必须写明：这些数是**上界**；不可与其他结果变量比较
+- **图注必须写明区间的性质**：`split_mode` 为 `external_test` 时训练/测试切分与
+  家庭构成是固定的（引擎在该模式下对所有 seed 复用同一份切分），
+  bootstrap 重抽的是蒙特卡洛重复而非家庭。因此区间表示的是
+  **蒙特卡洛误差**，不是对总体的抽样不确定性，会低估后者。
+  这句话必须出现在图 1、图 2 的图注里，不得省略。
 
 ## 图 3：(t, N) 曲面（沟通用）
 

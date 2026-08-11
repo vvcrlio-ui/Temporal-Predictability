@@ -110,3 +110,182 @@ Codex 报告 40 次重复得 92.5%。我用**另一组种子**、60 次重复重
 另确认 Codex 提出的"保序回归与单向收紧口径冲突"成立，属方案表述缺陷。
 已在 `plans/ffcws-gpa-horizon-demo.md` §C4 与「测试要求」第 4 条修正为：
 主口径用前缀最小值，保序回归降为对照，两者都输出。
+
+---
+
+# 第 3 轮（§A 波次划分）：通过
+
+审查对象：commit `949b5b9`。
+
+**结论：approved。** 四条验收标准逐条独立复验通过，五套 schema 全部通过引擎自身校验。
+§A 可以收工，下一步进 §B。
+
+## 逐条复验（我自己算的，不是照抄报告）
+
+| 验收 | 结论 | 证据 |
+|---|---|---|
+| 2 严格嵌套 | 通过 | `P0 ⊊ P1 ⊊ P3 ⊊ P5 ⊊ P9`，四个包含关系全部为真严格 |
+| 3 无越界列 | 通过 | 对每档独立重算 `source_column → 采集波次`，越界列数均为 **0** |
+| 4 未分配 source | 通过 | `unassigned_sources.csv` 含 3 行（`innatsm`/`incitysm`/`ihostat`），带 `reason` 列；未泄漏进任何一档 |
+| 表复用 + 官方切分 | 通过 | 五档 `table`/`test_table` 均指向同一份 `data.parquet`/`test.parquet`，`split_mode` 全为 `external_test` |
+
+各档规模与我在真实 manifest 上独立算出的累积值精确一致：
+
+| 档 | 建模列 | source 组 | onehot / continuous |
+|---|---|---|---|
+| lm0（出生）| 1158 | 351 | 301 / 50 |
+| lm1（1 岁）| 2867 | 848 | 733 / 115 |
+| lm3（3 岁）| 5776 | 1701 | 1495 / 206 |
+| lm5（5 岁）| 8509 | 2506 | 2211 / 295 |
+| lm9（9 岁）| 11426 | 3397 | 3039 / 358 |
+
+## 关键复验：引擎能不能读
+
+方案没把这条写成验收标准，但它才是 §A 真正的成败条件。我对五套 schema 逐个跑了
+引擎自己的 `load_input` + `validate_input`：
+
+```
+lm0 ✓  lm1 ✓  lm3 ✓  lm5 ✓  lm9 ✓
+```
+
+按 `Adapter/ADAPTER.md` §6，`validate_input` 会把"从实际 predictors 与 manifest
+重算出的 universe"与定义文件内容比对。五档全过，说明 feature universe 内容正确。
+
+## 关于"必须用引擎的 canonical_feature_universe()"
+
+`landmarks.py` 里没有直接调用该函数，一度看像违反方案 §A2。核查后确认：
+它委托给 `contract.write_engine_schema`，后者在 `contract.py:151-153` 使用
+`source_groups()` + `canonical_feature_universe()` + `canonical_json()`。
+
+**这比直接调用更好**——`ARCHITECTURE.md#3` 正是把"生成外部引擎 schema 与
+feature universe"划给 `contract.py` 的。没有绕过契约，是正确的复用。
+
+## 测试写法
+
+- 波次映射函数按五个波次参数化，标签与真实前缀形态一致（`m1`/`p2`/`hv3`/`f4`/`t5`）。
+- 未分配集合的测试里包含 `z6future`——**波次 6 是 15 岁那波**，必须被排除而不是
+  静默纳入。这条方案没要求，是 Codex 自己加的防御，方向对。
+- 真实数据那条只断言"嵌套 + 无越界 + 不含未分配"，**没有断言具体列数**，
+  符合方案"不得写成常量或断言的期望值"。缺真实产物时 `skipif` 跳过，合理。
+- `40 passed`（基线 31 + 9），与报告一致。
+
+## 遗留（不阻塞）
+
+1. **`project/build_landmark_schemas.py` 是第二个 CLI 入口，未进
+   `ARCHITECTURE.md#3` 的模块表。** 该表目前只列了 `adapter.py` 作为 CLI 入口。
+   建议补一行，并按 Codex 自己的建议在 `project/schema/README.md` 记录生成命令
+   与 landmark manifest 路径（`data/ard/<dataset>/landmarks/lm{t}/`）。
+2. 报告如实写了"外部引擎 checkout 有一个预先存在的未跟踪 `AGENTS.md`，
+   无法证明工作树完全干净"。核实属实，该文件与本轮无关，属于诚实披露。
+3. 本轮无未声明的行为变更；上一轮 `OptimizeWarning` 那类遗漏没有重复。
+
+## 下一步（§B）开工前必须先定的两件事
+
+这两条不属于 §A，但会挡住 §B：
+
+1. **谁过滤引擎输出里 `status != "ok"` 的行。**`aggregate_median_errors` 遇到空值
+   直接报错，图层方案把过滤写在图层，两层读同一份 CSV。建议放在
+   `project/analysis/` 的公开入口，图层复用，口径不分叉。
+2. **`seed` 在 `external_test` 下不切分数据。**`nk_grid.py:1611` 是
+   `splits = {seed: fixed_split for seed in split_seeds}`——每个 seed 拿到完全相同的
+   训练集，全部随机性来自 `SeedSequence([seed, draw])` 的排列。因此：
+   - `seed` 与 `draw` 数学上可互换，只有乘积有意义；
+   - §C 的 bootstrap 区间量的是**蒙特卡洛误差**，不是家庭层面的抽样误差
+     （家庭与切分都是固定的，一次都没重抽）。**图注必须写明这一点**，
+     否则会被读成"对总体的不确定性"。这条要补进图层方案。
+
+---
+
+# 第 4 轮（§B panel 配置 + §C0 过滤）：通过，带一条随后修
+
+审查对象：commit `9047f74`。
+
+**结论：approved。** §B 可以收工，**pilot 可以立刻开跑**。发现一个潜在缺陷（F1），
+不阻塞本次试跑，随 §D 一并修。
+
+## 逐条复验
+
+| 项 | 结论 | 证据 |
+|---|---|---|
+| `n_grid` 末端加密 | 通过 | gpa 实际可用训练行 **1165**（`data.parquet` 中 `gpa` 非缺失数，独立核对）。`466 / 816 / 1165` 恰为 40% / 70% / 100% |
+| `k_grid` 逐档不同 | 通过 | 全量 K 为 `351 / 848 / 1701 / 2506 / 3397`，与各档 source 数逐一对应 |
+| 两份配置 + dry-run | 通过 | 正式 71,680 = 8N × 4K × 64 × 7模型 × 5档；pilot 5,600 = 5N × 2K × 16 × 7 × 5 |
+| §C0 无硬编码列名 | 通过 | 全文无 `status` / `constant_prediction` / `underdetermined` 字面量（唯二命中是 `extrapolation_check_status`，无关） |
+| §C0 规则由调用方传入 | 通过 | `validity_column` + `validity_values` + `exclusion_flag_columns`，且校验了互相依赖、重复列、空集合 |
+| 过滤在聚合之前 | 通过 | `fit_learning_curves` 先 `_filter_records`（:119）再 `aggregate_median_errors` |
+| 过滤在重抽之前 | 通过 | `bootstrap_asymptote_intervals` 先过滤（:202）再 `_resample_units`（:229）。顺序正确——先剔无效行再抽单位，否则会抽到整单位无效 |
+| 旧测试未被弱化 | 通过 | 新增 4 个过滤测试，既有 40 项未改断言强度；`44 passed` |
+
+## Codex 自己标出的不一致：属实，且已实测
+
+报告指出「方案里 7 个模型，但成本算式按 6 个模型算」。**这是对的**，是我给方案补成本
+表时的疏漏——我实测的六模型没含 `super_learner`。
+
+补测结果（M2 单线程）：
+
+| N | K | 六模型 | `super_learner` | 占比 |
+|---|---|---|---|---|
+| 466 | 300 | 8.5 s | 3.5 s | +41% |
+| 1165 | 300 | 138.4 s | 8.6 s | +6% |
+| 466 | 3397 | 37.7 s | 42.3 s | +112% |
+
+结论：`super_learner` 在大 N / 小 K 时很便宜，在大 K 时约等于再加一份。
+整体成本估计上浮 **10%–100%**，量级不变。主动指出这条是对的。
+
+## F1（随 §D 一并修）：字符串型布尔标志会静默丢掉好行
+
+`_filter_records` 中：
+
+```python
+keep &= ~records[column].fillna(False).astype(bool)
+```
+
+当标志列是**字符串** dtype 时，`astype(bool)` 对任何非空字符串都返回 `True`，
+包括 `"False"`。实测：
+
+```
+输入 4 行，其中只有 1 行 underdetermined 为真
+列 dtype = str  →  实际剔除 3 行，只保留 1 行   ❌
+列 dtype = bool →  实际剔除 1 行               ✓
+```
+
+**失败模式是静默丢弃有效数据**，比报错更糟——曲线会照常画出来，只是基于更少的数据。
+
+**当前不会触发**：我核过引擎的失败行构造（`nk_grid.py:1823` → `_empty_diagnostics()`），
+`constant_prediction` / `underdetermined` / `converged` 在失败时写的是真布尔 `False`，
+不是空值，所以列不会退化成字符串。实测样本输出的这三列也确为 `bool` dtype。
+
+**但仍要修**：本模块的设计前提就是 article-agnostic、接受任意来源的表格。
+对一种完全合理的输入格式静默算错，与该前提冲突。
+
+修法二选一，任选其一并加测试：
+- 显式映射：仅接受真布尔/0-1/`{"true","false"}` 大小写不敏感字符串，其余抛错；
+- 或严格化：非布尔 dtype 直接报错，要求调用方先转换。
+
+**不要**保留现在这种"看起来能跑、结果悄悄错"的行为。
+
+## F2（决策项，不是缺陷）：匹配 K 含 300，在出生档是 85%
+
+方案里我写过「匹配值要明显小于 351」，并把 300 → 出生档抽 85% 作为警示例子。
+配置取的正是 `[100, 200, 300]`。
+
+Codex 已把「正式 N/K 精确档位」列入待确认，处理方式正确——这是留给人工的研究参数，
+不是实现错误。
+
+需要注意的连带影响：**pilot 中 lm0 的 `k_grid` 是 `[300, 351]`**，两个臂几乎相同
+（300 / 351 = 85%），该档基本没有"匹配 vs 全量"的对比度。作为流水线试跑无妨，
+正式跑之前应重新取值。
+
+## F3（次要）：bootstrap 路径丢弃了排除计数
+
+`bootstrap_asymptote_intervals` 里 `filtered_records, _, _ = _filter_records(...)`，
+排除行数与占比被丢掉，返回的区间表也不含这两列。只走 bootstrap 入口的调用方
+（图层很可能如此）拿不到 `excluded_cell_ratio`。建议在返回表中补上，或在
+`figures` 侧明确改为从 `fit_learning_curves` 取。
+
+## Pilot 耗时估计
+
+按实测成本对 pilot 网格求和，单线程约 **12–13 小时**，四核并行约 **3–4 小时**，
+落在方案设定的目标内。但成本曲线不单调（同一 K 下 N=1165 实测 138 s 高于
+N=1500 的 84 s），估计上下浮动可达一倍。**建议直接跑，用实测代替估计**——
+这本来就是 pilot 的用途。引擎自带断点续跑，跑不完可以中断看部分结果。

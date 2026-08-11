@@ -17,9 +17,6 @@ assets. Its current implemented scope prepares information observed from birth
 through age 9 for six age-15 outcomes. The first planned methods demonstration
 uses GPA only; it is not the final scope of the research program.
 
-The broader analysis will also evaluate whether conclusions are sensitive to
-the representation of categorical values and missing information.
-
 | Outcome | Code in the analysis data | Type |
 |---|---|---|
 | Grade point average | `gpa` | Continuous |
@@ -41,26 +38,16 @@ age-15 outcomes. Predictor eligibility, categorical value sets, and
 prevalence-based screening are determined using the predefined training sample
 only. The test sample is reserved for evaluating predictive performance.
 
-Three representations of the same source information are implemented. **Only
-`median_mode` is currently enabled** in `config/ffc.yaml`. The other two are
-retained for the representation-robustness question (research question 5 in the
-repository README) and are re-enabled by adding them back to the `strategies`
-list and re-running the adapter — no code change is required.
-
-| Representation | Configuration ID | Enabled | Treatment of categorical values and missing information |
-|---|---|---|---|
-| One-hot representation with within-sample imputation | `median_mode` | **yes** | Categorical variables are represented by grouped indicator columns; missing values are imputed using the selected training sample |
-| One-hot representation with missingness indicators | `median_missing_indicator` | no | Adds screened binary indicators that record whether a source value is missing |
-| Ordinal representation for categorical variables | `tree_ordinal` | no | Uses stable integer codes for categorical values; missing and previously unseen values remain missing |
-
-Configuration IDs serve file names and commands. Research text uses the
-descriptive representation names in the first column.
+Predictors use a single fixed representation, `median_mode`: categorical
+variables become grouped indicator columns, and missing values are imputed
+within whichever training subsample the engine selects. Two alternative
+representations remain implemented under `strategies/` but are not enabled
+and are not part of the research design.
 
 The analysis repeatedly varies \(N\) and \(K\), fits each model on the selected
 training data, and evaluates predictions on the predefined test sample. A
 categorical variable's encoded columns are selected together and count as one
-predictor variable. In the missingness-indicator representation, each declared
-indicator is an additional predictor variable.
+predictor variable.
 
 ## Reproduction
 
