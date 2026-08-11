@@ -263,6 +263,62 @@ def test_median_aggregation_and_envelope_are_public_and_generic(square_error: bo
     }
 
 
+def test_caller_declared_filters_run_before_median_aggregation() -> None:
+    records = pd.DataFrame(
+        {
+            "N": [10.0, 10.0, 10.0, 20.0, 40.0],
+            "metric": [0.9, 0.1, 0.2, 0.7, 0.5],
+            "verdict": ["accepted", "discarded", "accepted", "accepted", "accepted"],
+            "omit_for_diagnostic": [False, False, True, False, False],
+            "omit_for_stability": [False, False, False, False, False],
+        }
+    )
+
+    result = fit_learning_curves(
+        records,
+        error_column="metric",
+        forms=("power",),
+        validity_column="verdict",
+        validity_values={"accepted"},
+        exclusion_flag_columns=("omit_for_diagnostic", "omit_for_stability"),
+    )
+
+    assert result.excluded_row_count == 2
+    assert result.excluded_row_ratio == pytest.approx(0.4)
+    assert result.points["observed_error"].tolist() == pytest.approx([0.9, 0.7, 0.5])
+    assert result.points["observation_count"].tolist() == [1, 1, 1]
+
+
+@pytest.mark.parametrize(
+    ("validity_column", "validity_values", "message"),
+    [
+        ("verdict", None, "requires validity_values"),
+        (None, {"accepted"}, "requires validity_column"),
+        ("verdict", set(), "must not be empty"),
+    ],
+)
+def test_filter_contract_rejects_incomplete_validity_rule(
+    validity_column: str | None,
+    validity_values: set[str] | None,
+    message: str,
+) -> None:
+    records = power_records(
+        asymptote=0.2,
+        scale=1.8,
+        rate=0.75,
+        sample_sizes=np.geomspace(10, 80, 4),
+    ).assign(verdict="accepted")
+
+    with pytest.raises(ValueError, match=message):
+        fit_learning_curves(
+            records,
+            error_column="metric",
+            forms=("power",),
+            validity_column=validity_column,
+            validity_values=validity_values,
+        )
+
+
 @pytest.mark.parametrize("sample_sizes", [np.geomspace(8, 512, 7), np.geomspace(12, 768, 9)])
 def test_default_forms_include_individual_series_and_envelope(sample_sizes: np.ndarray) -> None:
     rows = []

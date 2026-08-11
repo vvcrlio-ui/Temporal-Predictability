@@ -1,0 +1,56 @@
+model_params: model_params.yaml
+preset: medium
+experiment_id: ffcws-gpa-landmark-v1
+data_version: ffcws-ard-v1
+model_spec_version: nkgrid-models-v1
+
+panels:
+  - name: ffc_median_mode_gpa_lm0
+    schema: schema/ffc_median_mode_gpa_lm0.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 8
+    n_draws: 8
+    n_grid: [50, 80, 128, 205, 328, 466, 816, 1165]
+    k_grid: [100, 200, 300, 351]
+    out: outputs/nk_grid_ffc_median_mode_gpa_lm0.csv
+
+  - name: ffc_median_mode_gpa_lm1
+    schema: schema/ffc_median_mode_gpa_lm1.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 8
+    n_draws: 8
+    n_grid: [50, 80, 128, 205, 328, 466, 816, 1165]
+    k_grid: [100, 200, 300, 848]
+    out: outputs/nk_grid_ffc_median_mode_gpa_lm1.csv
+
+  - name: ffc_median_mode_gpa_lm3
+    schema: schema/ffc_median_mode_gpa_lm3.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 8
+    n_draws: 8
+    n_grid: [50, 80, 128, 205, 328, 466, 816, 1165]
+    k_grid: [100, 200, 300, 1701]
+    out: outputs/nk_grid_ffc_median_mode_gpa_lm3.csv
+
+  - name: ffc_median_mode_gpa_lm5
+    schema: schema/ffc_median_mode_gpa_lm5.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 8
+    n_draws: 8
+    n_grid: [50, 80, 128, 205, 328, 466, 816, 1165]
+    k_grid: [100, 200, 300, 2506]
+    out: outputs/nk_grid_ffc_median_mode_gpa_lm5.csv
+
+  - name: ffc_median_mode_gpa_lm9
+    schema: schema/ffc_median_mode_gpa_lm9.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 8
+    n_draws: 8
+    n_grid: [50, 80, 128, 205, 328, 466, 816, 1165]
+    k_grid: [100, 200, 300, 3397]
+    out: outputs/nk_grid_ffc_median_mode_gpa_lm9.csv

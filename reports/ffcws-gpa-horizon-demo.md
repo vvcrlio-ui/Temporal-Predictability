@@ -71,3 +71,64 @@
 1. 请确认 `_SOURCE_WAVE_RE` 的“字母前缀后第一位数字”解释与 FFCWS 命名契约一致；它对实际 manifest 产生已验证的嵌套集合，但没有把任何现实列数写入代码或断言。
 2. 请确认 landmark manifest 放在原 GPA ARD 目录的 `landmarks/` 子目录、schema 仍回指原始 parquet 的布局符合下游 panel 预期。
 3. 请检查提交的五份 feature-universe JSON 是否适合纳入版本化 schema 契约；它们由外部引擎公开 API 生成，没有手写 predictor 定义。
+
+## 第 4 轮修改（§B panel 配置与 §C0 输入过滤）
+
+### 改动清单
+
+- `project/panels.landmark.yaml`：新增五个正式 GPA landmark panel；每个 panel 均显式给出 8 个 N、三个跨档共同的匹配 K（100 / 200 / 300）及该档独有的全量 K，并使用 `medium` 的 8 × 8 重复。
+- `project/panels.landmark.pilot.yaml`：新增目标为四小时内完成的五个 pilot panel；保留全量 K 与匹配 K=300、5 个 N（含 40% / 70% / 100% 尾部点），并将重复减至 4 × 4。
+- `project/analysis/learning_curve.py`：`fit_learning_curves()` 的公开签名增加调用方声明的 `validity_column` / `validity_values` / `exclusion_flag_columns`；先过滤、后中位数聚合，并通过 `LearningCurveResult` 返回 `excluded_row_count` 与 `excluded_row_ratio`。不包含任何 FFCWS 或引擎输出列名。
+- `project/tests/test_learning_curve.py`：增加参数化的过滤契约失败路径，以及同时使用有效性与两个排除标志的回归测试，锁住“过滤在中位数之前”及排除统计。
+- **顺带行为变更**：`bootstrap_asymptote_intervals()` 也接受相同的调用方过滤规则，在按重复单位重抽前过滤，并把同一排除计数和比例写入每个 interval 输出行；因此 bootstrap 与主拟合不会产生两套数据质量口径。
+
+### Panel dry-run 证据
+
+两份配置都从 `project/` 执行：
+
+```sh
+../.venv/bin/aleatoric-nk-grid-panels --manifest panels.landmark.yaml --dry-run
+../.venv/bin/aleatoric-nk-grid-panels --manifest panels.landmark.pilot.yaml --dry-run
+```
+
+| 配置 | 每个 panel `expected_output_rows` / `top_level_model_cells` | 五个 panel 合计 | 网格回显 |
+|---|---:|---:|---|
+| `panels.landmark.yaml` | 14,336 / 14,336 | **71,680 / 71,680** | 每档均回显 `n_grid=[50,80,128,205,328,466,816,1165]`，K 分别为 `[100,200,300,351]`、`[100,200,300,848]`、`[100,200,300,1701]`、`[100,200,300,2506]`、`[100,200,300,3397]`。 |
+| `panels.landmark.pilot.yaml` | 1,120 / 1,120 | **5,600 / 5,600** | 每档均回显 `n_grid=[50,200,466,816,1165]`，K 分别为 `[300,351]`、`[300,848]`、`[300,1701]`、`[300,2506]`、`[300,3397]`。 |
+
+两次回显的 `max_n=100` 与 `max_k=100` 是 `medium` preset 的保留字段；同一份回显中
+`n_grid` / `k_grid` 明确含有 1165 与最高 3397，证明实际分辨率选择使用显式网格，而非
+这两个 preset 默认上限。
+
+### 验收与测试证据（本轮范围）
+
+| # | 本轮可验收项 | 结论 | 证据 |
+|---|---|---|---|
+| B1 | 正式与 pilot 各有五个 GPA landmark panel，且不改既有 `panels.yaml` | 满足 | 两个新增 manifest 各含 lm0 / lm1 / lm3 / lm5 / lm9 五项；既有文件未在 diff 中。 |
+| B2 | 全量 K 按档不同、匹配 K 跨档相同且小于 351 | 满足 | 上表 dry-run 回显；全量 K 为 351 / 848 / 1701 / 2506 / 3397，匹配值为 100 / 200 / 300。 |
+| B3 | 尾部 N 含可用训练上限 1165 的 40% / 70% / 100% | 满足 | 训练集中有效 GPA 行数实测 1165；两份 manifest 均含 466 / 816 / 1165。 |
+| B4 | 两份 manifest 都通过外部引擎 dry-run，并核实 medium 封顶被显式网格覆盖 | 满足 | 上述两个命令退出码 0；回显的显式 grid 超过 100。 |
+| C0 | 调用方声明过滤、过滤先于中位数、返回排除数与比例 | 满足 | `test_caller_declared_filters_run_before_median_aggregation` 断言 N=10 的过滤后中位数为 0.9、排除 2/5；模块不引用 source-specific 列名。 |
+| C0 | 不完整的“有效性列 + 有效取值”规则被拒绝 | 满足 | `test_filter_contract_rejects_incomplete_validity_rule` 的三组参数化输入。 |
+
+- `PYTHONPYCACHEPREFIX=/private/tmp/ffcws-bytecode ../.venv/bin/python -m compileall -q adapter.py analysis src tests` → **通过**。
+- `PYTHONPYCACHEPREFIX=/private/tmp/ffcws-bytecode ../.venv/bin/python -m pytest -q -p no:cacheprovider` → **44 passed in 27.09s**。
+- `project/requirements.txt` 未改。外部 `Aleatoric_Luck` checkout 仍只显示开工前即存在的未跟踪 `AGENTS.md`，本轮没有写入该 checkout 或已安装引擎。
+
+### 待澄清问题
+
+1. 方案仍把正式 `n_grid` 与三个 matched-K 的**精确数值**保留给人工决定。本轮为满足可运行配置采用了 `N=[50,80,128,205,328,466,816,1165]` 与 matched K=`[100,200,300]`；它们满足全部给定约束，但正式 production 前需要研究方确认这些就是要发布的诊断档位。
+2. pilot 的 4 × 4 重复、5 × 2 网格将配置规模降至正式规模的约 7.8%，按方案中约 40 小时的量级估计约为 3.1 小时；这是量级推算，仍需首次实际运行确认四小时目标。
+3. 方案的模型列表明确列出 7 个模型（本轮照此配置），但其成本算式的 61,440 次拟合对应 6 个模型。dry-run 的 71,680 行反映了 7 模型配置；请确认成本预算应以 7 模型还是需另行删减模型为准。
+
+### 未覆盖与已知风险
+
+- 没有实际启动正式或 pilot N×K 训练；本轮仅验证了外部 CLI 的配置解析与规模估计，符合 §B 的 dry-run 要求。
+- C0 的默认参数保持不过滤。调用图层时必须显式传入其所消费 CSV 的有效性和排除标志列；本模块不会猜测列名。
+- 若过滤后某个组的可用 N 点不足三项，现有的明确拟合错误仍会触发；这是正确的诊断，而不是自动降级为少点拟合。
+
+### 给审查者的重点
+
+1. 请确认选择 7 个明确列出的模型、而不是成本表中隐含的 6 个，符合 demo 的研究意图；这一选择直接使正式 dry-run 从计划文字中的 61,440 变为 71,680 个 top-level cells。
+2. 请重点检查 `fit_learning_curves()` 的过滤参数是否应成为图层唯一调用口径；`bootstrap_asymptote_intervals()` 已采用同一规则以避免区间和点估计混用不同的 cell 集合。
+3. 请复核 `N=466/816/1165` 的整数取整（分别为 40.0% / 70.0% / 100.0% 的可用训练行数）与正式网格的前五个对数间隔点是否应在研究决策后调整。

@@ -8,7 +8,7 @@ imports a model-training package.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Sequence
+from typing import Collection, Literal, Sequence
 import warnings
 
 import numpy as np
@@ -32,6 +32,8 @@ class LearningCurveResult:
 
     points: pd.DataFrame
     fits: pd.DataFrame
+    excluded_row_count: int
+    excluded_row_ratio: float
 
 
 def aggregate_median_errors(
@@ -89,6 +91,9 @@ def fit_learning_curves(
     square_error: bool = False,
     forms: Sequence[CurveForm] = ("power", "exponential"),
     extrapolation_cutoff: float | None = None,
+    validity_column: str | None = None,
+    validity_values: Collection[object] | None = None,
+    exclusion_flag_columns: Sequence[str] = (),
 ) -> LearningCurveResult:
     """Fit constrained curves and an optional pointwise-minimum model envelope.
 
@@ -98,6 +103,12 @@ def fit_learning_curves(
     The extrapolation check fits only observations at or below the supplied
     cutoff (the median available sample size by default) and predicts the
     observed maximum sample size.
+
+    Callers may provide a validity column and its accepted values, plus any
+    number of boolean exclusion-flag columns.  Rows outside the accepted set
+    or with a true flag are removed before median aggregation.  The returned
+    counts make that data-quality decision available to every downstream
+    consumer without encoding any source-specific output column names here.
     """
 
     groups = _normalise_group_columns(group_columns, n_column, error_column)
@@ -105,8 +116,15 @@ def fit_learning_curves(
     if model_column is not None and model_column not in groups:
         raise ValueError("model_column must be included in group_columns")
 
-    aggregate = aggregate_median_errors(
+    filtered_records, excluded_row_count, excluded_row_ratio = _filter_records(
         records,
+        validity_column=validity_column,
+        validity_values=validity_values,
+        exclusion_flag_columns=exclusion_flag_columns,
+    )
+
+    aggregate = aggregate_median_errors(
+        filtered_records,
         n_column=n_column,
         error_column=error_column,
         group_columns=groups,
@@ -145,6 +163,8 @@ def fit_learning_curves(
     return LearningCurveResult(
         points=pd.concat(all_points, ignore_index=True),
         fits=pd.DataFrame(fit_rows),
+        excluded_row_count=excluded_row_count,
+        excluded_row_ratio=excluded_row_ratio,
     )
 
 
@@ -159,6 +179,9 @@ def bootstrap_asymptote_intervals(
     square_error: bool = False,
     forms: Sequence[CurveForm] = ("power", "exponential"),
     extrapolation_cutoff: float | None = None,
+    validity_column: str | None = None,
+    validity_values: Collection[object] | None = None,
+    exclusion_flag_columns: Sequence[str] = (),
     iterations: int,
     confidence_level: float,
     random_seed: int,
@@ -176,10 +199,16 @@ def bootstrap_asymptote_intervals(
         raise ValueError("iterations must be at least 1")
     if not 0 < confidence_level < 1:
         raise ValueError("confidence_level must be strictly between 0 and 1")
-    _validate_record_columns(records, [sample_column])
+    filtered_records, _, _ = _filter_records(
+        records,
+        validity_column=validity_column,
+        validity_values=validity_values,
+        exclusion_flag_columns=exclusion_flag_columns,
+    )
+    _validate_record_columns(filtered_records, [sample_column])
 
     groups = _normalise_group_columns(group_columns, n_column, error_column)
-    base = fit_learning_curves(
+    base_result = fit_learning_curves(
         records,
         n_column=n_column,
         error_column=error_column,
@@ -188,12 +217,16 @@ def bootstrap_asymptote_intervals(
         square_error=square_error,
         forms=forms,
         extrapolation_cutoff=extrapolation_cutoff,
-    ).fits
+        validity_column=validity_column,
+        validity_values=validity_values,
+        exclusion_flag_columns=exclusion_flag_columns,
+    )
+    base = base_result.fits
     rng = np.random.default_rng(random_seed)
     samples: list[pd.DataFrame] = []
     failures = 0
     for iteration in range(iterations):
-        resampled = _resample_units(records, sample_column, groups, rng)
+        resampled = _resample_units(filtered_records, sample_column, groups, rng)
         try:
             draw = fit_learning_curves(
                 resampled,
@@ -236,6 +269,8 @@ def bootstrap_asymptote_intervals(
         row["bootstrap_failures"] = failures
         row["bootstrap_iterations"] = iterations
         row["confidence_level"] = confidence_level
+        row["excluded_row_count"] = base_result.excluded_row_count
+        row["excluded_row_ratio"] = base_result.excluded_row_ratio
         interval_rows.append(row)
     return pd.DataFrame(interval_rows)
 
@@ -301,6 +336,44 @@ def normalize_asymptotes(
         raise ValueError(f"{asymptote_column!r} must contain only finite numeric values")
     result[output_column] = asymptotes / test_variance
     return result
+
+
+def _filter_records(
+    records: pd.DataFrame,
+    *,
+    validity_column: str | None,
+    validity_values: Collection[object] | None,
+    exclusion_flag_columns: Sequence[str],
+) -> tuple[pd.DataFrame, int, float]:
+    """Apply caller-declared row validity rules before any aggregation."""
+
+    flags = list(exclusion_flag_columns)
+    if len(flags) != len(set(flags)):
+        raise ValueError("exclusion_flag_columns must not contain duplicates")
+    if validity_column is None and validity_values is not None:
+        raise ValueError("validity_values requires validity_column")
+    if validity_column is not None and validity_values is None:
+        raise ValueError("validity_column requires validity_values")
+
+    required = [*flags]
+    if validity_column is not None:
+        required.append(validity_column)
+    _validate_record_columns(records, required)
+
+    keep = pd.Series(True, index=records.index, dtype=bool)
+    if validity_column is not None:
+        accepted = list(validity_values)
+        if not accepted:
+            raise ValueError("validity_values must not be empty when validity_column is set")
+        keep &= records[validity_column].isin(accepted)
+    for column in flags:
+        keep &= ~records[column].fillna(False).astype(bool)
+
+    excluded_row_count = int((~keep).sum())
+    excluded_row_ratio = (
+        excluded_row_count / len(records) if len(records) else 0.0
+    )
+    return records.loc[keep].copy(), excluded_row_count, excluded_row_ratio
 
 
 def _fit_series(
