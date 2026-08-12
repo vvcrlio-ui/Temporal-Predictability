@@ -14,6 +14,11 @@ panels:
     n_grid: [50, 200, 466, 816, 1165]
     k_grid: [300, 351]
     out: outputs/nk_grid_ffc_median_mode_gpa_lm0_pilot.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1165, K: 300}
+      - {model: super_learner, N: 1165, K: 351}
+      - {model: ridge, N: 1165, K: 351}
+      - {model: random_forest, N: 1165, K: 351}
 
   - name: ffc_median_mode_gpa_lm1_pilot
     schema: schema/ffc_median_mode_gpa_lm1.json
@@ -24,6 +29,11 @@ panels:
     n_grid: [50, 200, 466, 816, 1165]
     k_grid: [300, 848]
     out: outputs/nk_grid_ffc_median_mode_gpa_lm1_pilot.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1165, K: 300}
+      - {model: super_learner, N: 1165, K: 848}
+      - {model: ridge, N: 1165, K: 848}
+      - {model: random_forest, N: 1165, K: 848}
 
   - name: ffc_median_mode_gpa_lm3_pilot
     schema: schema/ffc_median_mode_gpa_lm3.json
@@ -34,6 +44,11 @@ panels:
     n_grid: [50, 200, 466, 816, 1165]
     k_grid: [300, 1701]
     out: outputs/nk_grid_ffc_median_mode_gpa_lm3_pilot.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1165, K: 300}
+      - {model: super_learner, N: 1165, K: 1701}
+      - {model: ridge, N: 1165, K: 1701}
+      - {model: random_forest, N: 1165, K: 1701}
 
   - name: ffc_median_mode_gpa_lm5_pilot
     schema: schema/ffc_median_mode_gpa_lm5.json
@@ -44,6 +59,11 @@ panels:
     n_grid: [50, 200, 466, 816, 1165]
     k_grid: [300, 2506]
     out: outputs/nk_grid_ffc_median_mode_gpa_lm5_pilot.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1165, K: 300}
+      - {model: super_learner, N: 1165, K: 2506}
+      - {model: ridge, N: 1165, K: 2506}
+      - {model: random_forest, N: 1165, K: 2506}
 
   - name: ffc_median_mode_gpa_lm9_pilot
     schema: schema/ffc_median_mode_gpa_lm9.json
@@ -54,3 +74,8 @@ panels:
     n_grid: [50, 200, 466, 816, 1165]
     k_grid: [300, 3397]
     out: outputs/nk_grid_ffc_median_mode_gpa_lm9_pilot.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1165, K: 300}
+      - {model: super_learner, N: 1165, K: 3397}
+      - {model: ridge, N: 1165, K: 3397}
+      - {model: random_forest, N: 1165, K: 3397}

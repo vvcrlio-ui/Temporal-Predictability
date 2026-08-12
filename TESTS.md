@@ -66,8 +66,13 @@
 |---|---|---|---|---|
 | 2026-08-07 | 工作区未初始化 Git | 借用 Aleatoric 虚拟环境 | `python -m unittest discover -s tests` | 10 项通过（历史记录，口径已废弃） |
 | 2026-08-07 | `main @ 891f652` | 本仓库 `.venv`，`requirements.txt` 固定引擎 `19890d3`，Python 3.14 / macOS arm64 | `../.venv/bin/python -m pytest -q` | **10 passed（37.7s 首跑 / 2.8s 复跑）** |
+| 2026-08-12 | `main @ 0445803` | 本仓库 `.venv`，引擎 pin 升至 `6a9a139`（含逐行预测导出；ridge CV 改为解析 LOO），Python 3.14 / macOS arm64 | `../.venv/bin/python -m pytest -q` | **44 passed（24.0s）** |
 
 `891f652` 是 Horizon demo 与图层两份方案的开工基线。
+
+引擎 pin 从 `19890d3` 升到 `6a9a139` 后测试数不变（44 passed）——本仓库测试覆盖的是
+adapter 与学习曲线模块，不依赖 ridge 的数值实现。但**引擎输出的数值结果已变**，
+升级前的 pilot 结果已归档至 `project/data/archive/pilot-engine-19890d3/`。
 
 新工作包开工前若计划指定了目标提交或分支，应在该版本上实跑标准命令并追加记录；不得沿用其他仓库或其他提交的测试计数。升级 `requirements.txt` 中固定的引擎 commit 后必须重跑并追加新行——引擎行为变化会改变数值结果。
 
