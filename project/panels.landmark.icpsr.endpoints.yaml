@@ -1,0 +1,86 @@
+model_params: model_params.yaml
+preset: timing_full
+experiment_id: ffcws-icpsr-grid-endpoints-v1
+data_version: ffcws-icpsr-ard-v2
+model_spec_version: nkgrid-models-v1
+
+panels:
+  - name: ffc_icpsr_median_mode_gpa_lm0_endpoints
+    schema: schema/ffc_icpsr_median_mode_gpa_lm0.json
+    outcome: gpa
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [300, 526]
+    n_jobs: 2
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm0_endpoints.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1843, K: 300}
+      - {model: super_learner, N: 1843, K: 526}
+      - {model: ridge, N: 1843, K: 526}
+      - {model: random_forest, N: 1843, K: 526}
+
+  - name: ffc_icpsr_median_mode_gpa_lm1_endpoints
+    schema: schema/ffc_icpsr_median_mode_gpa_lm1.json
+    outcome: gpa
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [300, 1194]
+    n_jobs: 2
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm1_endpoints.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1843, K: 300}
+      - {model: super_learner, N: 1843, K: 1194}
+      - {model: ridge, N: 1843, K: 1194}
+      - {model: random_forest, N: 1843, K: 1194}
+
+  - name: ffc_icpsr_median_mode_gpa_lm3_endpoints
+    schema: schema/ffc_icpsr_median_mode_gpa_lm3.json
+    outcome: gpa
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [300, 2568]
+    n_jobs: 2
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm3_endpoints.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1843, K: 300}
+      - {model: super_learner, N: 1843, K: 2568}
+      - {model: ridge, N: 1843, K: 2568}
+      - {model: random_forest, N: 1843, K: 2568}
+
+  - name: ffc_icpsr_median_mode_gpa_lm5_endpoints
+    schema: schema/ffc_icpsr_median_mode_gpa_lm5.json
+    outcome: gpa
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [300, 3939]
+    n_jobs: 2
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm5_endpoints.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1843, K: 300}
+      - {model: super_learner, N: 1843, K: 3939}
+      - {model: ridge, N: 1843, K: 3939}
+      - {model: random_forest, N: 1843, K: 3939}
+
+  - name: ffc_icpsr_median_mode_gpa_lm9_endpoints
+    schema: schema/ffc_icpsr_median_mode_gpa_lm9.json
+    outcome: gpa
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [300, 5851]
+    n_jobs: 2
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm9_endpoints.csv
+    prediction_export_cells:
+      - {model: super_learner, N: 1843, K: 300}
+      - {model: super_learner, N: 1843, K: 5851}
+      - {model: ridge, N: 1843, K: 5851}
+      - {model: random_forest, N: 1843, K: 5851}
