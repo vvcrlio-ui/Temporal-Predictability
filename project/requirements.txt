@@ -8,6 +8,12 @@
 #       ridge 既是候选模型之一，也是 super_learner 的四个基学习器之一，
 #       因此升级前的全部引擎输出不再可比（已归档至 data/archive/）。
 #   (b) 新增按需的逐行预测导出（prediction_export_cells）。
-aleatoric-nk-grid[models,parquet] @ git+https://github.com/vvcrlio-ui/Aleatoric_Luck.git@6a9a1390ad68e19cece2f5d93d8832680680ec1f#subdirectory=NK_Grid
+# 2026-08-13: 6a9a139 → 7ecda22 "Expand Ridge alpha grids"。
+#   旧的 alpha 候选上限 10^4 在 K_expanded >= 5776 时被顶穿，ridge 的误差随 N 上升；
+#   现改为 10^-4..10^6 / 63 点，且 super_learner 内部原本写死的 ridge 网格
+#   改由 ridge_alpha_log10_* 等参数驱动。model_params.yaml 必须同步
+#   （algorithm_version 升到 nk-grid-v5-adapter-6），否则参数契约校验会拒绝。
+#   ridge 的数值结果因此再次改变，6a9a139 轮的输出不再可比。
+aleatoric-nk-grid[models,parquet] @ git+https://github.com/vvcrlio-ui/Aleatoric_Luck.git@7ecda229e333cb1c0f1f951ff0b7d195f0dad252#subdirectory=NK_Grid
 
 pytest>=8,<10
