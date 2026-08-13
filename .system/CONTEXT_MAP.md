@@ -68,6 +68,6 @@
 
 ## Known Constraints
 
-- `aleatoric_nk_grid` 是外部依赖，由 `project/requirements.txt` 固定到 `vvcrlio-ui/Aleatoric_Luck@19890d3` 的 `NK_Grid` 子目录；升级该 commit 必须重跑基线。
+- `aleatoric_nk_grid` 是外部依赖，由 `project/requirements.txt` 固定到 `vvcrlio-ui/Aleatoric_Luck@6a9a139` 的 `NK_Grid` 子目录；升级该 commit 必须重跑基线。该 pin 于 2026-08-12 由 `19890d3` 升级以启用逐行预测导出，19890d3 轮次的结果随之作废。
 - 完整适配器运行需要用户提供的 FFCWS 私有数据，文件位于 `project/data/private/`。
 - 完整 N×K 网格运行的算力预算尚未评估；`preset` 从 `medium` 起步。
