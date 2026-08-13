@@ -136,6 +136,7 @@ def write_engine_schema(
     manifest_path: Path,
     manifest: pd.DataFrame,
     id_column: str,
+    adapter_contract_version: str,
     feature_universe_stem: str | None = None,
 ) -> Path:
     schema_root.mkdir(parents=True, exist_ok=True)
@@ -197,6 +198,7 @@ def write_engine_schema(
         dataset_dir / "provenance.json",
         {
             "adapter": "ffcws",
+            "contract_version": adapter_contract_version,
             "dataset": dataset,
             "schema_sha256": file_sha256(schema_path),
             "feature_universe_sha256": file_sha256(definition_path),

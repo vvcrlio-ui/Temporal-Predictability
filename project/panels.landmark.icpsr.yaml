@@ -1,0 +1,59 @@
+model_params: model_params.yaml
+preset: medium
+experiment_id: ffcws-icpsr-rebuild-v1
+data_version: ffcws-icpsr-ard-v1
+model_spec_version: nkgrid-models-v1
+
+# This rebuild panel intentionally contains only the measured full-N/full-K
+# endpoint for each landmark. Intermediate N/K grid cells remain a research
+# design decision and are not inferred from the retired Challenge pilot grid.
+panels:
+  - name: ffc_icpsr_median_mode_gpa_lm0
+    schema: schema/ffc_icpsr_median_mode_gpa_lm0.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [1475]
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm0.csv
+
+  - name: ffc_icpsr_median_mode_gpa_lm1
+    schema: schema/ffc_icpsr_median_mode_gpa_lm1.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [3484]
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm1.csv
+
+  - name: ffc_icpsr_median_mode_gpa_lm3
+    schema: schema/ffc_icpsr_median_mode_gpa_lm3.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [7371]
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm3.csv
+
+  - name: ffc_icpsr_median_mode_gpa_lm5
+    schema: schema/ffc_icpsr_median_mode_gpa_lm5.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [11091]
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm5.csv
+
+  - name: ffc_icpsr_median_mode_gpa_lm9
+    schema: schema/ffc_icpsr_median_mode_gpa_lm9.json
+    outcome: gpa
+    models: [ridge, lasso, random_forest, extra_trees, xgboost, lightgbm, super_learner]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [1843]
+    k_grid: [16172]
+    out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm9.csv

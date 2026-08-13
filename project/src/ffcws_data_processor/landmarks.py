@@ -32,6 +32,14 @@ LANDMARK_WAVE_LIMITS: tuple[tuple[int, int], ...] = (
 """(Observation-age landmark, maximum collection-wave number) pairs."""
 
 _SOURCE_WAVE_RE = re.compile(r"^[A-Za-z]+(\d)")
+_OFFICIAL_WAVE_NUMBERS: Mapping[str, int] = {
+    "Baseline": 1,
+    "Year 1": 2,
+    "Year 3": 3,
+    "Year 5": 4,
+    "Year 9": 5,
+}
+_FORBIDDEN_OFFICIAL_WAVES = frozenset({"Year 15", "Year 22"})
 
 
 @dataclass(frozen=True)
@@ -114,6 +122,32 @@ def _keep_mask(values: pd.Series) -> pd.Series:
     )
 
 
+def _manifest_wave_numbers(manifest: pd.DataFrame) -> tuple[dict[str, int], tuple[str, ...]]:
+    """Read metadata-backed wave assignments from an ICPSR feature manifest."""
+
+    if "wave" not in manifest:
+        raise ValueError("ICPSR landmark export requires a manifest 'wave' column")
+    source_wave = (
+        manifest.loc[:, ["source_column", "wave"]]
+        .drop_duplicates()
+        .groupby("source_column", sort=False)["wave"]
+        .agg(lambda values: tuple(pd.unique(values.dropna())))
+    )
+    waves: dict[str, int] = {}
+    unassigned: list[str] = []
+    for source, values in source_wave.items():
+        if len(values) != 1:
+            unassigned.append(str(source))
+            continue
+        wave = str(values[0])
+        number = _OFFICIAL_WAVE_NUMBERS.get(wave)
+        if number is None:
+            unassigned.append(str(source))
+        else:
+            waves[str(source)] = number
+    return waves, tuple(unassigned)
+
+
 def export_landmark_schemas(
     *,
     dataset_dir: Path,
@@ -121,6 +155,9 @@ def export_landmark_schemas(
     dataset: str,
     outcome: str,
     id_column: str,
+    adapter_contract_version: str = "ffcws-adapter-v1",
+    use_manifest_wave: bool = False,
+    forbidden_source_columns: Iterable[str] = (),
 ) -> LandmarkSchemaArtifacts:
     """Write five nested schemas that reuse an existing external-test ARD pair.
 
@@ -147,9 +184,20 @@ def export_landmark_schemas(
             f"{sorted(missing_columns)}"
         )
     sources = _ordered_unique(manifest["source_column"].tolist())
-    source_waves = source_wave_numbers(sources)
-    source_labels = derive_source_wave_labels(sources)
-    unassigned = unassigned_source_columns(sources)
+    if use_manifest_wave:
+        source_waves, unassigned = _manifest_wave_numbers(manifest)
+        source_labels = {
+            source: WAVE_LABELS[wave] for source, wave in source_waves.items()
+        }
+        forbidden_waves = manifest.loc[
+            manifest["wave"].isin(_FORBIDDEN_OFFICIAL_WAVES), "source_column"
+        ].astype(str)
+        forbidden_sources = set(forbidden_source_columns) | set(forbidden_waves)
+    else:
+        source_waves = source_wave_numbers(sources)
+        source_labels = derive_source_wave_labels(sources)
+        unassigned = unassigned_source_columns(sources)
+        forbidden_sources = set(forbidden_source_columns)
 
     labels_path = dataset_dir / "source_wave_labels.csv"
     write_frame(
@@ -200,6 +248,7 @@ def export_landmark_schemas(
             manifest_path=output_manifest_path,
             manifest=landmark_manifest,
             id_column=id_column,
+            adapter_contract_version=adapter_contract_version,
         )
         predictors = {
             str(value)
@@ -207,6 +256,24 @@ def export_landmark_schemas(
                 _keep_mask(landmark_manifest["keep"]), "feature_name"
             ]
         }
+        predictor_sources = set(
+            landmark_manifest.loc[
+                _keep_mask(landmark_manifest["keep"]), "source_column"
+            ].astype(str)
+        )
+        leaked_sources = predictor_sources & forbidden_sources
+        if leaked_sources:
+            raise ValueError(
+                "Landmark predictors contain forbidden outcome/future sources: "
+                f"{sorted(leaked_sources)}"
+            )
+        future_sources = {
+            source for source in predictor_sources if source_waves.get(source, 99) > maximum_wave
+        }
+        if future_sources:
+            raise ValueError(
+                f"Landmark {landmark} includes a future-wave source: {sorted(future_sources)}"
+            )
         if previous_predictors is not None and not previous_predictors < predictors:
             raise ValueError(
                 "Landmark predictor sets must be strictly nested; "

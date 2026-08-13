@@ -24,6 +24,7 @@ class SchemaConfig:
     min_numeric_fraction: float = 0.95
     categorical_max_levels: int = 15
     min_binary_prevalence: float = 0.01
+    continuous_negative_missing_threshold: float | None = None
 
     def validate(self) -> None:
         if not 0.0 <= self.min_valid_rate <= 1.0:
@@ -34,6 +35,12 @@ class SchemaConfig:
             raise ValueError("categorical_max_levels must be positive")
         if not 0.0 <= self.min_binary_prevalence <= 0.5:
             raise ValueError("min_binary_prevalence must be between 0 and 0.5")
+        if self.continuous_negative_missing_threshold is not None and (
+            self.continuous_negative_missing_threshold > -10
+        ):
+            raise ValueError(
+                "continuous_negative_missing_threshold must be <= -10 when set"
+            )
 
 
 @dataclass
@@ -63,6 +70,7 @@ class SourceSpec:
     observed_features: list[FeatureDef] = field(default_factory=list)
     missing_features: list[FeatureDef] = field(default_factory=list)
     has_blank_missing: bool = False
+    continuous_negative_missing_threshold: float | None = None
 
 
 @dataclass
@@ -124,6 +132,24 @@ def missing_masks(values: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
 def numeric_values(values: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
     raw, blank, coded = missing_masks(values)
     numeric = pd.to_numeric(raw.mask(blank | coded), errors="coerce").astype(float)
+    return numeric, raw, blank, coded
+
+
+def source_numeric_values(
+    frame: pd.DataFrame, source: SourceSpec
+) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+    """Return numeric values with source-specific continuous-code handling.
+
+    The FFCWS -1..-9 codes are always missing.  ICPSR uses -10 and below as
+    substantive categories in categorical variables, but they are not valid
+    points on a continuous scale.  The latter rule is stored on the shared
+    schema so every strategy applies it consistently.
+    """
+
+    numeric, raw, blank, coded = numeric_values(frame[source.source_column])
+    threshold = source.continuous_negative_missing_threshold
+    if source.status == "numeric" and threshold is not None:
+        numeric = numeric.mask(numeric <= threshold)
     return numeric, raw, blank, coded
 
 
@@ -192,6 +218,7 @@ def build_shared_schema(
     *,
     value_labels: Mapping[str, Mapping[Any, Any]] | None = None,
     config: SchemaConfig | None = None,
+    candidate_sources: Iterable[str] | None = None,
 ) -> SharedSchema:
     """Infer one outcome-free schema from the official training pool only."""
 
@@ -215,9 +242,22 @@ def build_shared_schema(
     sources: list[SourceSpec] = []
     n_rows = len(schema_frame)
 
-    for source_order, source_column in enumerate(
-        column for column in background.columns if column != config.id_column
-    ):
+    candidate_set = set(candidate_sources) if candidate_sources is not None else None
+    source_columns = [
+        column
+        for column in background.columns
+        if column != config.id_column
+        and (candidate_set is None or column in candidate_set)
+    ]
+    if candidate_set is not None:
+        missing_sources = candidate_set - set(background.columns)
+        if missing_sources:
+            raise KeyError(
+                "Configured candidate sources are absent from background: "
+                f"{sorted(missing_sources)[:5]}"
+            )
+
+    for source_order, source_column in enumerate(source_columns):
         values = schema_frame[source_column]
         numeric, raw, blank, coded = numeric_values(values)
         structural_missing = blank | coded
@@ -358,6 +398,11 @@ def build_shared_schema(
                 observed_features=observed_features,
                 missing_features=missing_features,
                 has_blank_missing=bool(blank.any()),
+                continuous_negative_missing_threshold=(
+                    config.continuous_negative_missing_threshold
+                    if status == "numeric"
+                    else None
+                ),
             )
         )
 

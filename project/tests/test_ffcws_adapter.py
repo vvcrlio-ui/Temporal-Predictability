@@ -137,6 +137,9 @@ class PipelineTest(unittest.TestCase):
                 self.assertIn("challengeID", validated.train)
                 provenance_path = validated.schema.table.parent / "provenance.json"
                 provenance_text = provenance_path.read_text(encoding="utf-8")
+                self.assertEqual(
+                    json.loads(provenance_text)["contract_version"], "ffcws-adapter-v1"
+                )
                 self.assertNotIn(str(root), provenance_text)
                 self.assertNotIn("challengeID", provenance_text)
 

@@ -45,10 +45,12 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 
 def read_stata_with_labels(
-    path: Path,
+    path: Path, *, include_value_labels: bool = True
 ) -> tuple[pd.DataFrame, dict[str, dict[Any, str]]]:
     path = Path(path)
     raw = pd.read_stata(path, convert_categoricals=False)
+    if not include_value_labels:
+        return raw, {}
     labeled = pd.read_stata(path, convert_categoricals=True)
     value_labels: dict[str, dict[Any, str]] = {}
     for column in raw.columns:

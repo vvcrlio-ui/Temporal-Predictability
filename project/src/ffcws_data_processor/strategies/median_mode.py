@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..common.manifests import EncodedResult, feature_row, manifest_frame
-from ..common.schema import SharedSchema, numeric_values
+from ..common.schema import SharedSchema, source_numeric_values
 from ..common.validation import unknown_qa_row
 from ._shared import categorical_state, unknown_counts
 
@@ -28,7 +28,7 @@ def encode_median_mode(
     unknown_rows: list[dict[str, Any]] = []
 
     for source_order, source in enumerate(schema.eligible_sources):
-        numeric, _raw, _blank, _coded = numeric_values(frame[source.source_column])
+        numeric, _raw, _blank, _coded = source_numeric_values(frame, source)
         if source.status == "numeric":
             feature = source.observed_features[0]
             columns[feature.feature_name] = numeric.astype(float)
