@@ -37,7 +37,7 @@
 - 验收标准：
   - [ ] 五个 landmark schema 严格嵌套且无越界 source
   - [ ] 未归类 source 被显式报告，不被猜测分配
-  - [ ] panel 使用预定义外部测试集和约定的 N/K 网格
+  - [ ] panel 使用该路线的外部测试集（Challenge 为官方划分，ICPSR 为自建划分）和约定的 N/K 网格
   - [ ] 渐近线估计、外推自检、bootstrap 区间与单调化均有测试
   - [ ] 产出数值表、诊断和方法说明
   - [ ] `TESTS.md` 中对应验证通过

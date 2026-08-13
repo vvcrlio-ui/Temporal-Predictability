@@ -87,7 +87,7 @@ adapter 与学习曲线模块，不依赖 ridge 的数值实现。但**引擎输
 
 - 波次标签纯函数对 1–5 波及不可归类 source 的处理。
 - 五档 manifest、feature universe 和 schema 的严格嵌套性与无越界列。
-- 所有 landmark 复用官方训练/测试划分和同一 ARD 表。
+- 同一路线内所有 landmark 复用同一套训练/测试划分和同一 ARD 表；Challenge 路线用官方划分，ICPSR 路线用自建划分。
 - 学习曲线拟合参数约束、失败路径和合成数据恢复能力。
 - 尾部删点外推自检与不可信时的结构化诊断。
 - 按家庭 ID 聚类的 bootstrap 可复现性与区间合法性。

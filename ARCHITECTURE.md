@@ -8,8 +8,9 @@
 
 ## 2. Business Invariants
 
-- 必须保留 FFCWS 预定义的训练集与测试集；不得自行重分割真实数据。
-- 预测变量资格、类别状态、流行率筛选和其他依赖观测值的决策只能使用预定义训练样本。
+- Challenge 路线（`config/ffc.yaml`）必须保留 FFCWS 预定义的训练集与测试集；不得自行重分割真实数据。
+- ICPSR 路线（`config/ffc_icpsr.yaml`）的原始数据不附带官方切分，训练池、开发半与锁定半由本仓库按固定种子自建；比例与种子写入配置后不得更改。开发半承载全部模型比较与设计判断，锁定半只用于最终报告一次。理由见 `plans/ffcws-icpsr-rebuild.md`。
+- 预测变量资格、类别状态、流行率筛选和其他依赖观测值的决策只能使用该路线的训练样本。
 - 测试集中未在对应 outcome 的有效训练行出现的类别必须视为未知，不得反向改变训练 schema。
 - 缺失 outcome 的行在 ARD 中保留，并在验证或拟合时按 outcome 单独处理。
 - 同一原始分类变量生成的 one-hot 列必须作为一个原子 source 进入或离开 K 维度。
@@ -53,9 +54,9 @@
 
 ## 5. Data and API Contracts
 
-- 适配器配置版本为 `ffcws-adapter-v1`，并要求 `split_mode: external_test` 与 `feature_universe_mode: train_pool_screened`。
+- 适配器配置版本为 `ffcws-adapter-v1`（Challenge 路线）或 `ffcws-adapter-v2`（ICPSR 路线）；两者都要求 `split_mode: external_test` 与 `feature_universe_mode: train_pool_screened`。不同契约版本的产物不得混用。
 - 输入主键默认为 `challengeID`；背景、训练和测试表中的 ID 必须唯一，训练与测试 ID 必须互斥。
-- 缺失码固定为 `-9` 至 `-1`；配置若与代码契约不一致，适配器必须失败。
+- 缺失码固定为 `-9` 至 `-1`；配置若与代码契约不一致，适配器必须失败。`-10` 及以下不是缺失码，而是 FFCWS 的实质答案（区间回答与类别选项）：类别变量保留为独立层级，连续变量判为缺失。
 - 当前 outcome 集合为 `gpa`、`grit`、`materialHardship`、`eviction`、`layoff` 和 `jobTraining`。
 - 表示策略固定为 `median_mode` 一种，这是研究设计决定，不是暂时配置。
   `median_missing_indicator` 与 `tree_ordinal` 的实现仍在 `strategies/` 下，
