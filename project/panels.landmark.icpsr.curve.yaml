@@ -4,16 +4,18 @@ experiment_id: ffcws-icpsr-grid-curve-v1
 data_version: ffcws-icpsr-ard-v2
 model_spec_version: nkgrid-models-v1
 
-# Deferred after calibration: this is the fully reduced B-stage definition,
-# retained for a later budget-authorized run and not launched in this task.
+# B stage: the learning curve that decides whether the tail has flattened.
+# The post-calibration reductions were reverted on 2026-08-13 after stage A
+# finished in 2h51m. The full design costs about 5.4h, so A+B stays inside the
+# 12h budget and none of the plan's reduction rules need to fire.
 panels:
   - name: ffc_icpsr_median_mode_gpa_lm0_curve
     schema: schema/ffc_icpsr_median_mode_gpa_lm0.json
     outcome: gpa
-    models: [super_learner, lightgbm]
-    n_seeds: 2
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
     n_draws: 4
-    n_grid: [300, 737, 1290]
+    n_grid: [100, 300, 737, 1290]
     k_grid: [300, 526]
     n_jobs: 2
     out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm0_curve.csv
@@ -21,10 +23,10 @@ panels:
   - name: ffc_icpsr_median_mode_gpa_lm1_curve
     schema: schema/ffc_icpsr_median_mode_gpa_lm1.json
     outcome: gpa
-    models: [super_learner, lightgbm]
-    n_seeds: 2
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
     n_draws: 4
-    n_grid: [300, 737, 1290]
+    n_grid: [100, 300, 737, 1290]
     k_grid: [300, 1194]
     n_jobs: 2
     out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm1_curve.csv
@@ -32,10 +34,10 @@ panels:
   - name: ffc_icpsr_median_mode_gpa_lm3_curve
     schema: schema/ffc_icpsr_median_mode_gpa_lm3.json
     outcome: gpa
-    models: [super_learner, lightgbm]
-    n_seeds: 2
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
     n_draws: 4
-    n_grid: [300, 737, 1290]
+    n_grid: [100, 300, 737, 1290]
     k_grid: [300, 2568]
     n_jobs: 2
     out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm3_curve.csv
@@ -43,10 +45,10 @@ panels:
   - name: ffc_icpsr_median_mode_gpa_lm5_curve
     schema: schema/ffc_icpsr_median_mode_gpa_lm5.json
     outcome: gpa
-    models: [super_learner, lightgbm]
-    n_seeds: 2
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
     n_draws: 4
-    n_grid: [300, 737, 1290]
+    n_grid: [100, 300, 737, 1290]
     k_grid: [300, 3939]
     n_jobs: 2
     out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm5_curve.csv
@@ -54,10 +56,10 @@ panels:
   - name: ffc_icpsr_median_mode_gpa_lm9_curve
     schema: schema/ffc_icpsr_median_mode_gpa_lm9.json
     outcome: gpa
-    models: [super_learner, lightgbm]
-    n_seeds: 2
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
     n_draws: 4
-    n_grid: [300, 737, 1290]
+    n_grid: [100, 300, 737, 1290]
     k_grid: [300, 5851]
     n_jobs: 2
     out: outputs/nk_grid_ffc_icpsr_median_mode_gpa_lm9_curve.csv
