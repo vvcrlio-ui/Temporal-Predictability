@@ -1,0 +1,61 @@
+model_params: model_params.yaml
+preset: timing_full
+experiment_id: ffcws-icpsr-material-hardship-devcheck-curve-v1
+data_version: ffcws-icpsr-material-hardship-ard-v2
+model_spec_version: nkgrid-models-v1
+
+panels:
+  - name: ffc_icpsr_material_hardship_lm0_curve
+    schema: schema/ffc_icpsr_median_mode_materialHardship_lm0.json
+    outcome: materialHardship
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [100, 300, 932, 1630]
+    k_grid: [300, 1478]
+    n_jobs: 2
+    out: outputs/hardship_devcheck/nk_grid_ffc_icpsr_material_hardship_lm0_curve.csv
+
+  - name: ffc_icpsr_material_hardship_lm1_curve
+    schema: schema/ffc_icpsr_median_mode_materialHardship_lm1.json
+    outcome: materialHardship
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [100, 300, 932, 1630]
+    k_grid: [300, 3497]
+    n_jobs: 2
+    out: outputs/hardship_devcheck/nk_grid_ffc_icpsr_material_hardship_lm1_curve.csv
+
+  - name: ffc_icpsr_material_hardship_lm3_curve
+    schema: schema/ffc_icpsr_median_mode_materialHardship_lm3.json
+    outcome: materialHardship
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [100, 300, 932, 1630]
+    k_grid: [300, 7366]
+    n_jobs: 2
+    out: outputs/hardship_devcheck/nk_grid_ffc_icpsr_material_hardship_lm3_curve.csv
+
+  - name: ffc_icpsr_material_hardship_lm5_curve
+    schema: schema/ffc_icpsr_median_mode_materialHardship_lm5.json
+    outcome: materialHardship
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [100, 300, 932, 1630]
+    k_grid: [300, 11088]
+    n_jobs: 2
+    out: outputs/hardship_devcheck/nk_grid_ffc_icpsr_material_hardship_lm5_curve.csv
+
+  - name: ffc_icpsr_material_hardship_lm9_curve
+    schema: schema/ffc_icpsr_median_mode_materialHardship_lm9.json
+    outcome: materialHardship
+    models: [super_learner, ridge, random_forest, lightgbm]
+    n_seeds: 4
+    n_draws: 4
+    n_grid: [100, 300, 932, 1630]
+    k_grid: [300, 16148]
+    n_jobs: 2
+    out: outputs/hardship_devcheck/nk_grid_ffc_icpsr_material_hardship_lm9_curve.csv

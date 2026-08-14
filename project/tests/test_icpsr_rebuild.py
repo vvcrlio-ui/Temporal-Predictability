@@ -16,10 +16,15 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 from ffcws_data_processor.common.schema import SchemaConfig, build_shared_schema
 from ffcws_data_processor.icpsr import (
     GPA_COMPONENTS,
+    MATERIAL_HARDSHIP_COMPONENTS,
+    MaterialHardshipDistributionTarget,
     build_gpa_outcomes,
+    build_material_hardship_candidates,
+    extend_icpsr_household_splits,
     metadata_for_sources,
     normalize_columns_lower,
     read_icpsr_metadata,
+    select_validated_material_hardship_candidate,
     split_icpsr_gpa,
     wave_diagnostics,
 )
@@ -150,6 +155,86 @@ def test_icpsr_split_is_reproducible_disjoint_and_complete(seed: int) -> None:
     assert not set(first.train.idnum) & set(first.development_test.idnum)
     assert not set(first.train.idnum) & set(first.locked_test.idnum)
     assert not set(first.development_test.idnum) & set(first.locked_test.idnum)
+
+
+def test_all_household_split_preserves_every_existing_gpa_assignment() -> None:
+    gpa_outcomes = pd.DataFrame(
+        {"idnum": range(24), "gpa": np.linspace(1.0, 4.0, 24)}
+    )
+    original = split_icpsr_gpa(
+        gpa_outcomes,
+        id_column="idnum",
+        seed=17,
+        train_fraction=0.65,
+        development_fraction=0.175,
+        locked_fraction=0.175,
+    )
+    extension = extend_icpsr_household_splits(
+        pd.Series(range(40)),
+        gpa_outcomes,
+        id_column="idnum",
+        seed=17,
+        train_fraction=0.65,
+        development_fraction=0.175,
+        locked_fraction=0.175,
+    ).assignments
+    assert extension["idnum"].is_unique
+    assert set(extension["idnum"]) == set(range(40))
+    for name, frame in (
+        ("train", original.train),
+        ("development", original.development_test),
+        ("locked", original.locked_test),
+    ):
+        assigned = set(
+            extension.loc[extension["split"].eq(name), "idnum"]
+        ) & set(gpa_outcomes["idnum"])
+        assert assigned == set(frame["idnum"])
+
+
+def test_material_hardship_complete_battery_tie_break_is_checked_before_selection() -> None:
+    background = pd.DataFrame(
+        {
+            "idnum": [1, 2, 3],
+            **{component: [2, 2, 2] for component in MATERIAL_HARDSHIP_COMPONENTS},
+        }
+    )
+    background.loc[0, "p6j37"] = 1
+    background.loc[1, "p6j37"] = -1
+    background.loc[1, "p6j48"] = 1
+    background.loc[2, "p6j37"] = 1
+    background.loc[2, "p6j48"] = -1
+    candidates = build_material_hardship_candidates(background, id_column="idnum")
+    assert candidates["past_year_preferred"]["materialHardship"].tolist() == [
+        1 / 11,
+        1 / 11,
+        1 / 11,
+    ]
+    assert candidates["since_last_visit_preferred"]["materialHardship"].tolist() == [
+        0.0,
+        1 / 11,
+        1 / 11,
+    ]
+    target = MaterialHardshipDistributionTarget(
+        nonmissing_count=3,
+        mean=1 / 11,
+        standard_deviation=0.0,
+        mean_tolerance=0.0,
+        standard_deviation_tolerance=0.0,
+        minimum_acceptable_maximum_numerator=1,
+    )
+    selected, validations = select_validated_material_hardship_candidate(
+        candidates,
+        selected_candidate="past_year_preferred",
+        target=target,
+    )
+    assert selected.equals(candidates["past_year_preferred"])
+    assert validations[0].passed
+    with pytest.raises(ValueError, match="analysis is blocked"):
+        select_validated_material_hardship_candidate(
+            candidates,
+            selected_candidate="since_last_visit_preferred",
+            target=target,
+        )
 
 
 def _write_synthetic_icpsr_inputs(root: Path) -> tuple[Path, Path]:
@@ -309,8 +394,26 @@ def test_metadata_landmarks_exclude_future_waves_and_outcome_sources(
 ) -> None:
     dataset_dir = tmp_path / "ard"
     dataset_dir.mkdir()
-    sources = ["m1a", "p2a", "p3a", "p4a", "p5a", "k6b20a", "future"]
-    waves = ["Baseline", "Year 1", "Year 3", "Year 5", "Year 9", "Year 15", future_wave]
+    sources = [
+        "m1a",
+        "p2a",
+        "p3a",
+        "p4a",
+        "p5a",
+        "k6b20a",
+        *MATERIAL_HARDSHIP_COMPONENTS,
+        "future",
+    ]
+    waves = [
+        "Baseline",
+        "Year 1",
+        "Year 3",
+        "Year 5",
+        "Year 9",
+        "Year 15",
+        *(["Year 15"] * len(MATERIAL_HARDSHIP_COMPONENTS)),
+        future_wave,
+    ]
     manifest = pd.DataFrame(
         {
             "source_column": sources,
@@ -346,11 +449,14 @@ def test_metadata_landmarks_exclude_future_waves_and_outcome_sources(
         outcome="gpa",
         id_column="idnum",
         use_manifest_wave=True,
-        forbidden_source_columns=GPA_COMPONENTS,
+        forbidden_source_columns=(*GPA_COMPONENTS, *MATERIAL_HARDSHIP_COMPONENTS),
     )
     for path in artifacts.schema_paths.values():
         predictors = json.loads(path.read_text(encoding="utf-8"))["predictor_columns"]
         assert "X_k6b20a" not in predictors
+        assert not {
+            f"X_{component}" for component in MATERIAL_HARDSHIP_COMPONENTS
+        } & set(predictors)
         assert "X_future" not in predictors
 
 

@@ -18,6 +18,36 @@ ICPSR_METADATA_COLUMNS = ("new_name", "old_name", "wave", "respondent")
 PREDICTOR_WAVES = ("Baseline", "Year 1", "Year 3", "Year 5", "Year 9")
 DISALLOWED_PREDICTOR_WAVES = ("Year 15", "Year 22")
 GPA_COMPONENTS = ("k6b20a", "k6b20b", "k6b20c", "k6b20d")
+MATERIAL_HARDSHIP_PAST_YEAR_COMPONENTS = (
+    "p6j37",
+    "p6j38",
+    "p6j39",
+    "p6j40",
+    "p6j41",
+    "p6j42",
+    "p6j43",
+    "p6j44",
+    "p6j45",
+    "p6j46",
+    "p6j47",
+)
+MATERIAL_HARDSHIP_SINCE_LAST_VISIT_COMPONENTS = (
+    "p6j48",
+    "p6j49",
+    "p6j50",
+    "p6j51",
+    "p6j52",
+    "p6j53",
+    "p6j54",
+    "p6j55",
+    "p6j56",
+    "p6j57",
+    "p6j58",
+)
+MATERIAL_HARDSHIP_COMPONENTS = (
+    *MATERIAL_HARDSHIP_PAST_YEAR_COMPONENTS,
+    *MATERIAL_HARDSHIP_SINCE_LAST_VISIT_COMPONENTS,
+)
 
 
 @dataclass(frozen=True)
@@ -27,6 +57,41 @@ class IcpsrSplits:
     train: pd.DataFrame
     development_test: pd.DataFrame
     locked_test: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class HouseholdSplitAssignments:
+    """A fixed three-way family assignment reused by every ICPSR outcome."""
+
+    assignments: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class MaterialHardshipDistributionTarget:
+    """The pre-specified Challenge marginal-distribution target."""
+
+    nonmissing_count: int
+    mean: float
+    standard_deviation: float
+    denominator: int = 11
+    mean_tolerance: float = 0.010
+    standard_deviation_tolerance: float = 0.010
+    minimum_acceptable_maximum_numerator: int = 8
+
+
+@dataclass(frozen=True)
+class MaterialHardshipCandidateValidation:
+    """Auditable comparison of one reconstruction candidate with the target."""
+
+    candidate: str
+    nonmissing_count: int
+    numerators: tuple[int, ...]
+    minimum_numerator: int | None
+    maximum_numerator: int | None
+    mean: float | None
+    standard_deviation: float | None
+    passed: bool
+    failures: tuple[str, ...]
 
 
 def normalize_columns_lower(frame: pd.DataFrame, *, label: str) -> pd.DataFrame:
@@ -165,6 +230,140 @@ def build_gpa_outcomes(background: pd.DataFrame, *, id_column: str) -> pd.DataFr
     return outcomes
 
 
+def build_material_hardship_candidates(
+    background: pd.DataFrame, *, id_column: str
+) -> dict[str, pd.DataFrame]:
+    """Reconstruct the two pre-specified complete-battery tie-break outcomes."""
+
+    required = {id_column, *MATERIAL_HARDSHIP_COMPONENTS}
+    missing = required - set(background.columns)
+    if missing:
+        raise KeyError(
+            "ICPSR background is missing material-hardship component(s): "
+            f"{sorted(missing)}"
+        )
+    def battery_score(components: tuple[str, ...]) -> tuple[pd.Series, pd.Series]:
+        battery = background.loc[:, list(components)].apply(pd.to_numeric, errors="coerce")
+        complete = battery.isin([1, 2]).all(axis=1)
+        score = battery.eq(1).sum(axis=1).where(complete).astype(float) / len(components)
+        return score, complete
+
+    past_year, past_year_complete = battery_score(MATERIAL_HARDSHIP_PAST_YEAR_COMPONENTS)
+    since_last_visit, since_last_visit_complete = battery_score(
+        MATERIAL_HARDSHIP_SINCE_LAST_VISIT_COMPONENTS
+    )
+    candidates = {
+        "past_year_preferred": pd.DataFrame(
+            {
+                id_column: background[id_column],
+                "materialHardship": past_year.where(past_year_complete, since_last_visit),
+            }
+        ),
+        "since_last_visit_preferred": pd.DataFrame(
+            {
+                id_column: background[id_column],
+                "materialHardship": since_last_visit.where(
+                    since_last_visit_complete, past_year
+                ),
+            }
+        ),
+    }
+    for candidate, outcomes in candidates.items():
+        ensure_unique_ids(outcomes, id_column, f"ICPSR materialHardship candidate {candidate}")
+    return candidates
+
+
+def validate_material_hardship_candidate(
+    outcomes: pd.DataFrame,
+    *,
+    candidate: str,
+    target: MaterialHardshipDistributionTarget,
+) -> MaterialHardshipCandidateValidation:
+    """Validate an outcome reconstruction against the immutable M2 target."""
+
+    if "materialHardship" not in outcomes:
+        raise KeyError("Material-hardship candidate is missing the outcome column")
+    observed = pd.to_numeric(outcomes["materialHardship"], errors="coerce").dropna()
+    numerators = observed.mul(target.denominator)
+    rounded = numerators.round()
+    failures: list[str] = []
+    if not np.allclose(numerators.to_numpy(), rounded.to_numpy(), atol=1e-12, rtol=0.0):
+        failures.append(f"values are not integer multiples of 1/{target.denominator}")
+    integer_numerators = tuple(sorted(set(rounded.astype(int).tolist())))
+    maximum = max(integer_numerators) if integer_numerators else None
+    minimum = min(integer_numerators) if integer_numerators else None
+    if minimum is None or minimum < 0 or maximum is None or maximum > target.denominator:
+        failures.append(
+            "numerators must lie between 0 and the fixed denominator "
+            f"{target.denominator}"
+        )
+    if maximum is None or maximum < target.minimum_acceptable_maximum_numerator:
+        failures.append(
+            f"maximum numerator is {maximum}, below the required "
+            f"{target.minimum_acceptable_maximum_numerator}"
+        )
+    mean = float(observed.mean()) if not observed.empty else None
+    standard_deviation = float(observed.std(ddof=1)) if len(observed) > 1 else None
+    if mean is None or abs(mean - target.mean) > target.mean_tolerance:
+        failures.append(
+            f"mean is {mean}, outside {target.mean} +/- {target.mean_tolerance}"
+        )
+    if (
+        standard_deviation is None
+        or abs(standard_deviation - target.standard_deviation)
+        > target.standard_deviation_tolerance
+    ):
+        failures.append(
+            "standard deviation is "
+            f"{standard_deviation}, outside {target.standard_deviation} +/- "
+            f"{target.standard_deviation_tolerance}"
+        )
+    return MaterialHardshipCandidateValidation(
+        candidate=candidate,
+        nonmissing_count=int(len(observed)),
+        numerators=integer_numerators,
+        minimum_numerator=minimum,
+        maximum_numerator=maximum,
+        mean=mean,
+        standard_deviation=standard_deviation,
+        passed=not failures,
+        failures=tuple(failures),
+    )
+
+
+def select_validated_material_hardship_candidate(
+    candidates: Mapping[str, pd.DataFrame],
+    *,
+    selected_candidate: str,
+    target: MaterialHardshipDistributionTarget,
+) -> tuple[pd.DataFrame, tuple[MaterialHardshipCandidateValidation, ...]]:
+    """Return the pre-specified tie-break candidate only when it passes M2."""
+
+    if selected_candidate not in candidates:
+        raise ValueError(
+            "Configured material-hardship candidate is unavailable: "
+            f"{selected_candidate}"
+        )
+    validations = tuple(
+        validate_material_hardship_candidate(
+            outcomes, candidate=candidate, target=target
+        )
+        for candidate, outcomes in candidates.items()
+    )
+    selected_validation = next(
+        validation
+        for validation in validations
+        if validation.candidate == selected_candidate
+    )
+    if not selected_validation.passed:
+        raise ValueError(
+            "Material-hardship M2 distribution target did not match the pre-specified "
+            f"candidate {selected_candidate!r}; analysis is blocked: "
+            f"{'; '.join(selected_validation.failures)}"
+        )
+    return candidates[selected_candidate].copy(), validations
+
+
 def split_icpsr_gpa(
     outcomes: pd.DataFrame,
     *,
@@ -207,6 +406,128 @@ def split_icpsr_gpa(
     ensure_disjoint_ids(split.train, split.locked_test, id_column=id_column)
     ensure_disjoint_ids(split.development_test, split.locked_test, id_column=id_column)
     return split
+
+
+def _largest_remainder_counts(
+    size: int, fractions: np.ndarray
+) -> np.ndarray:
+    """Allocate integer split counts with the established stable tie break."""
+
+    raw_counts = size * fractions
+    counts = np.floor(raw_counts).astype(int)
+    for index in np.argsort(-(raw_counts - counts), kind="stable")[: size - counts.sum()]:
+        counts[index] += 1
+    return counts
+
+
+def extend_icpsr_household_splits(
+    household_ids: pd.Series,
+    gpa_outcomes: pd.DataFrame,
+    *,
+    id_column: str,
+    seed: int,
+    train_fraction: float,
+    development_fraction: float,
+    locked_fraction: float,
+) -> HouseholdSplitAssignments:
+    """Extend the established GPA split to all families without moving GPA IDs."""
+
+    ids = pd.DataFrame({id_column: household_ids}).copy()
+    ensure_unique_ids(ids, id_column, "ICPSR household universe")
+    fractions = np.array([train_fraction, development_fraction, locked_fraction])
+    if not np.isclose(fractions.sum(), 1.0) or bool((fractions <= 0).any()):
+        raise ValueError("ICPSR split fractions must be positive and sum to 1")
+    gpa_split = split_icpsr_gpa(
+        gpa_outcomes,
+        id_column=id_column,
+        seed=seed,
+        train_fraction=train_fraction,
+        development_fraction=development_fraction,
+        locked_fraction=locked_fraction,
+    )
+    parts = (
+        ("train", gpa_split.train),
+        ("development", gpa_split.development_test),
+        ("locked", gpa_split.locked_test),
+    )
+    gpa_assignments = pd.concat(
+        [
+            frame.loc[:, [id_column]].assign(split=split_name)
+            for split_name, frame in parts
+        ],
+        ignore_index=True,
+    )
+    desired_counts = _largest_remainder_counts(len(ids), fractions)
+    gpa_counts = np.array([len(frame) for _name, frame in parts])
+    additional_counts = desired_counts - gpa_counts
+    if bool((additional_counts < 0).any()):
+        raise ValueError("GPA split already exceeds an all-household split quota")
+    additional_ids = ids.loc[
+        ~ids[id_column].isin(gpa_assignments[id_column]), id_column
+    ].to_numpy()
+    permutation = np.random.default_rng(seed).permutation(len(additional_ids))
+    shuffled_additional = additional_ids[permutation]
+    additional_assignments = pd.DataFrame(
+        {
+            id_column: shuffled_additional,
+            "split": np.repeat(
+                np.array(["train", "development", "locked"]), additional_counts
+            ),
+        }
+    )
+    assignments = pd.concat([gpa_assignments, additional_assignments], ignore_index=True)
+    ensure_unique_ids(assignments, id_column, "ICPSR household split assignments")
+    if len(assignments) != len(ids) or set(assignments[id_column]) != set(ids[id_column]):
+        raise AssertionError("Household split assignments are not a partition of all families")
+    if not np.array_equal(
+        assignments["split"].value_counts().reindex(["train", "development", "locked"]).to_numpy(),
+        desired_counts,
+    ):
+        raise AssertionError("All-household split counts do not match the configured allocation")
+    for split_name, frame in parts:
+        expected_gpa_ids = set(frame[id_column])
+        assigned_gpa_ids = set(
+            assignments.loc[
+                assignments["split"].eq(split_name)
+                & assignments[id_column].isin(gpa_assignments[id_column]),
+                id_column,
+            ]
+        )
+        if assigned_gpa_ids != expected_gpa_ids:
+            raise AssertionError(f"GPA {split_name} assignment changed during extension")
+    return HouseholdSplitAssignments(assignments=assignments)
+
+
+def split_outcome_by_household_assignment(
+    outcomes: pd.DataFrame,
+    assignments: HouseholdSplitAssignments,
+    *,
+    id_column: str,
+    outcome: str,
+) -> IcpsrSplits:
+    """Intersect one valid outcome with the fixed whole-family split assignment."""
+
+    required = {id_column, outcome}
+    missing = required - set(outcomes.columns)
+    if missing:
+        raise KeyError(f"Outcome split is missing columns: {sorted(missing)}")
+    valid = outcomes.loc[outcomes[outcome].notna(), [id_column, outcome]].copy()
+    ensure_unique_ids(valid, id_column, f"ICPSR {outcome} analysis sample")
+    assigned = valid.merge(
+        assignments.assignments, on=id_column, how="left", validate="one_to_one"
+    )
+    if assigned["split"].isna().any():
+        raise AssertionError("Valid outcome rows are missing a household split assignment")
+    split_frames = {
+        split_name: assigned.loc[assigned["split"].eq(split_name), [id_column, outcome]]
+        .reset_index(drop=True)
+        for split_name in ("train", "development", "locked")
+    }
+    return IcpsrSplits(
+        train=split_frames["train"],
+        development_test=split_frames["development"],
+        locked_test=split_frames["locked"],
+    )
 
 
 def candidate_icpsr_predictor_sources(

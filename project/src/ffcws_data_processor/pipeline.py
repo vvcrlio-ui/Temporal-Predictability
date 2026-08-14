@@ -33,14 +33,20 @@ from .contract import enforce_outcome_train_category_coverage, write_engine_sche
 from .icpsr import (
     DISALLOWED_PREDICTOR_WAVES,
     GPA_COMPONENTS,
+    MATERIAL_HARDSHIP_COMPONENTS,
+    MaterialHardshipDistributionTarget,
     build_gpa_outcomes,
+    build_material_hardship_candidates,
     candidate_icpsr_predictor_sources,
     continuous_negative_code_summary,
+    extend_icpsr_household_splits,
     metadata_for_sources,
     normalize_columns_lower,
     normalize_value_labels_lower,
     read_icpsr_metadata,
+    select_validated_material_hardship_candidate,
     split_icpsr_gpa,
+    split_outcome_by_household_assignment,
     wave_diagnostics,
 )
 from .landmarks import export_landmark_schemas
@@ -86,6 +92,36 @@ def _icpsr_split_config(document: dict[str, Any]) -> dict[str, float | int]:
         "development_fraction": float(value["development_fraction"]),
         "locked_fraction": float(value["locked_fraction"]),
     }
+
+
+def _material_hardship_config(
+    document: dict[str, Any]
+) -> tuple[str, MaterialHardshipDistributionTarget]:
+    value = _required_mapping(document, "material_hardship")
+    target_document = _required_mapping(value, "distribution_target")
+    required = {"selected_candidate", "nonmissing_count", "mean", "standard_deviation"}
+    missing = required - {"selected_candidate", *target_document}
+    if missing:
+        raise ValueError(
+            "Material-hardship configuration is missing required settings: "
+            f"{sorted(missing)}"
+        )
+    return (
+        str(value["selected_candidate"]),
+        MaterialHardshipDistributionTarget(
+            nonmissing_count=int(target_document["nonmissing_count"]),
+            mean=float(target_document["mean"]),
+            standard_deviation=float(target_document["standard_deviation"]),
+            denominator=int(target_document.get("denominator", 11)),
+            mean_tolerance=float(target_document.get("mean_tolerance", 0.010)),
+            standard_deviation_tolerance=float(
+                target_document.get("standard_deviation_tolerance", 0.010)
+            ),
+            minimum_acceptable_maximum_numerator=int(
+                target_document.get("minimum_acceptable_maximum_numerator", 8)
+            ),
+        ),
+    )
 
 
 def _artifact_contract_version(provenance_path: Path) -> str | None:
@@ -213,6 +249,8 @@ def run_pipeline(
     source_metadata: pd.DataFrame | None = None
     input_paths: dict[str, Path] = {"background": background_path}
     locked_split = None
+    outcome_forbidden_sources: tuple[str, ...] = GPA_COMPONENTS
+    material_hardship_validations = ()
     if data_source == "icpsr":
         background = normalize_columns_lower(background, label="ICPSR background")
         value_labels = normalize_value_labels_lower(value_labels)
@@ -224,13 +262,44 @@ def run_pipeline(
             [column for column in background.columns if column != id_column],
         )
         source_metadata, wave_mismatches = wave_diagnostics(source_metadata)
-        outcomes_frame = build_gpa_outcomes(background, id_column=id_column)
+        gpa_outcomes = build_gpa_outcomes(background, id_column=id_column)
         split_config = _icpsr_split_config(document)
-        splits = split_icpsr_gpa(outcomes_frame, id_column=id_column, **split_config)
+        if outcomes == ["gpa"]:
+            splits = split_icpsr_gpa(gpa_outcomes, id_column=id_column, **split_config)
+        elif outcomes == ["materialHardship"]:
+            selected_candidate, target = _material_hardship_config(document)
+            candidates = build_material_hardship_candidates(background, id_column=id_column)
+            outcomes_frame, material_hardship_validations = (
+                select_validated_material_hardship_candidate(
+                    candidates,
+                    selected_candidate=selected_candidate,
+                    target=target,
+                )
+            )
+            household_assignments = extend_icpsr_household_splits(
+                background[id_column],
+                gpa_outcomes,
+                id_column=id_column,
+                **split_config,
+            )
+            splits = split_outcome_by_household_assignment(
+                outcomes_frame,
+                household_assignments,
+                id_column=id_column,
+                outcome="materialHardship",
+            )
+            outcome_forbidden_sources = MATERIAL_HARDSHIP_COMPONENTS
+        else:
+            raise ValueError(
+                "ICPSR configurations must build one outcome at a time; supported "
+                "outcomes are ['gpa'] and ['materialHardship']"
+            )
         train = splits.train
         test = splits.development_test
         locked_split = splits.locked_test
-        candidate_sources = candidate_icpsr_predictor_sources(source_metadata)
+        candidate_sources = candidate_icpsr_predictor_sources(
+            source_metadata, outcome_sources=outcome_forbidden_sources
+        )
         input_paths["metadata"] = metadata_path
     else:
         train_path = _resolve_path(paths["train"], config_dir)
@@ -274,6 +343,31 @@ def run_pipeline(
         unassigned_sources["reason"] = "no_official_metadata_wave"
         write_frame(output_root / "unassigned_sources.csv", unassigned_sources)
         write_frame(output_root / "metadata_regex_mismatches.csv", wave_mismatches)
+        if material_hardship_validations:
+            write_json(
+                output_root / "material_hardship_candidate_validations.json",
+                [
+                    {
+                        "candidate": validation.candidate,
+                        "nonmissing_count": validation.nonmissing_count,
+                        "numerators": list(validation.numerators),
+                        "minimum_numerator": validation.minimum_numerator,
+                        "maximum_numerator": validation.maximum_numerator,
+                        "mean": validation.mean,
+                        "standard_deviation": validation.standard_deviation,
+                        "target_mean_tolerance": target.mean_tolerance,
+                        "target_standard_deviation_tolerance": (
+                            target.standard_deviation_tolerance
+                        ),
+                        "minimum_acceptable_maximum_numerator": (
+                            target.minimum_acceptable_maximum_numerator
+                        ),
+                        "passed": validation.passed,
+                        "failures": list(validation.failures),
+                    }
+                    for validation in material_hardship_validations
+                ],
+            )
     write_frame(output_root / "source_manifest.csv", source_manifest)
     write_json(output_root / "schema.json", schema.to_dict())
 
@@ -396,7 +490,9 @@ def run_pipeline(
                 id_column=id_column,
                 adapter_contract_version=contract_version,
                 feature_universe_stem=(
-                    f"ffc_icpsr_{result.strategy}"
+                    f"ffc_icpsr_{result.strategy}_{outcome}"
+                    if data_source == "icpsr" and outcome != "gpa"
+                    else f"ffc_icpsr_{result.strategy}"
                     if data_source == "icpsr"
                     else f"ffc_{result.strategy}"
                 ),
@@ -424,7 +520,7 @@ def run_pipeline(
                     id_column=id_column,
                     adapter_contract_version=contract_version,
                     use_manifest_wave=True,
-                    forbidden_source_columns=GPA_COMPONENTS,
+                    forbidden_source_columns=outcome_forbidden_sources,
                 )
                 engine_schemas.update(
                     {

@@ -1,0 +1,62 @@
+contract_version: ffcws-adapter-v2
+data_source: icpsr
+split_mode: external_test
+feature_universe_mode: train_pool_screened
+
+paths:
+  background: ../data/private/ffcws_icpsr.dta
+  metadata: ../data/private/FFMetadata_v20_f.csv
+  output_root: ../data/icpsr_hardship_adapter_work
+  ard_root: ../data/ard_icpsr_material_hardship
+  schema_root: ../schema
+
+id_column: IDNUM
+outcomes:
+  - materialHardship
+strategies:
+  - median_mode
+input_validation_mode: schema_only
+
+missing_value_codes:
+  - -9
+  - -8
+  - -7
+  - -6
+  - -5
+  - -4
+  - -3
+  - -2
+  - -1
+
+schema:
+  min_valid_rate: 0.5
+  min_numeric_fraction: 0.95
+  categorical_max_levels: 15
+  min_binary_prevalence: 0.01
+  continuous_negative_missing_threshold: -10
+
+icpsr_split:
+  seed: 20260813
+  train_fraction: 0.65
+  development_fraction: 0.175
+  locked_fraction: 0.175
+
+# This target is the immutable M2 construction gate. The adapter evaluates
+# both pre-specified complete-battery tie-break candidates before it builds ARD.
+# The primary candidate is fixed before modelling; the alternate is reported.
+material_hardship:
+  selected_candidate: past_year_preferred
+  distribution_target:
+    nonmissing_count: 2558
+    mean: 0.108
+    standard_deviation: 0.157
+    denominator: 11
+    mean_tolerance: 0.010
+    standard_deviation_tolerance: 0.010
+    minimum_acceptable_maximum_numerator: 8
+
+unknown_rate_threshold: 0.95
+exchangeability_justification: >-
+  ICPSR Baseline-to-Year-9 sources are screened using only the reproducible
+  training pool. One-hot columns from a raw categorical source remain atomic;
+  the development test half does not determine schema eligibility.
