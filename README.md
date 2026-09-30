@@ -35,10 +35,10 @@ The main empirical object is **a surface over joint data scale × observation wa
 Let $b$ index the joint scale levels, each corresponding to a pair $(N_b,K_b)$. The surface can be written as:
 
 $$
-P_Y(t,T,b)=\operatorname{Performance}\bigl(Y_T\mid H_{\le t},N_b,K_b\bigr).
+P_Y(t,T,b)=\mathrm{Performance}\bigl(Y_T\mid H_{\le t},N_b,K_b\bigr).
 $$
 
-The surface shows three kinds of change at once. Along the wave direction, the researcher gains more life history. Along the scale direction, the researcher has more families and more variables. Along the outcome-age direction, the predicted event lies further from the observation point. Horizontal, vertical, diagonal (fixed horizon $T-t$), and matched-$K$ comparisons are all slice queries on the same surface, not separate experiments.
+The surface shows three kinds of change at once. Along the wave direction, the researcher gains more life history. Along the scale direction, the researcher has more families and more variables. Along the outcome-age direction, the predicted event lies further from the observation point. Horizontal, vertical, diagonal (fixed horizon $T-t$), and matched $K$ comparisons are all slice queries on the same surface, not separate experiments.
 
 Because the four axes multiply, the surface is necessarily **sampled** rather than filled in. Every run declares in advance which slices it covers and why.
 
@@ -77,18 +77,18 @@ The joint surface presents the full phenomenon, while the diagnostic slices and 
 For outcome age $s$, the theoretical target is:
 
 $$
-U(t,s)=\frac{\mathbb{E}[\operatorname{Var}(Y_s\mid H_{\le t})]}{\operatorname{Var}(Y_s)}.
+U(t,s)=\frac{\mathbb{E}[\mathrm{Var}(Y_s\mid H_{\le t})]}{\mathrm{Var}(Y_s)}.
 $$
 
-$U(t,s)$ is the fraction of the variance of the age-$s$ outcome that remains unpredictable at age $t$, given the life history observed up to that age. As the information set grows, the true $U(t,s)$ should not increase.
+$U(t,s)$ is the fraction of the variance of the outcome at age $s$ that remains unpredictable at age $t$, given the life history observed up to that age. As the information set grows, the true $U(t,s)$ should not increase.
 
 With finite data, the observed prediction error contains not only the inherent unpredictability of the outcome but also the effects of too few samples, too few variables, and incomplete model learning. The joint-scale surface therefore cannot be called $U(t,s)$ directly. Only when a learning curve with a fixed information set passes the extrapolation self-check is its asymptotic error reported as an empirical upper bound on $U(t,s)$. Both the raw estimate and the monotonized estimate are retained.
 
 ### Stages
 
-**1. Method demo.** Outcome: GPA at age 15. Observation cutoffs: birth and ages 1, 3, 5, and 9. The demo tests whether the wave partition, fixed-$K$ learning curves, the asymptote self-check, and figure interpretation work in practice, and supplies the estimation and diagnostic components for the joint surface. It is a method validation, not the research goal.
+**1. Method demo.** Outcome: GPA at age 15. Observation cutoffs: birth and ages 1, 3, 5, and 9. The demo tests whether the wave partition, learning curves at fixed $K$, the asymptote self-check, and figure interpretation work in practice, and supplies the estimation and diagnostic components for the joint surface. It is a method validation, not the research goal.
 
-**2. Age-15 multi-outcome study.** The design extends to all six Challenge outcomes and formally adds the linked $N$–$K$ scale axis. Each outcome gets its own surface, diagnostic slices, and unpredictability upper bound. Raw errors and $U$ levels are not simply ranked across outcomes, because the outcomes differ in scale and measurement.
+**2. Age-15 multi-outcome study.** The design extends to all six Challenge outcomes and formally adds the joint scale axis, in which $N$ and $K$ grow together. Each outcome gets its own surface, diagnostic slices, and unpredictability upper bound. Raw errors and $U$ levels are not simply ranked across outcomes, because the outcomes differ in scale and measurement.
 
 **3. Life-course extension.** Outcome age becomes an axis: the same construct is measured at ages 9, 15, and 22, the observation cutoffs extend to age 15, and the analysis covers the full $(t,T)$ grid. Outcome constructs, data availability, attrition, and measurement comparability are checked anew rather than carried over from the demo.
 
