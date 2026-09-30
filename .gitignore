@@ -42,3 +42,9 @@ project/outputs/*
 # Env / secrets
 .env
 .env.*
+
+# Internal docs are kept locally and not published; only the root README is public.
+*.md
+!/README.md
+/.system/
+/reports/

@@ -1,106 +1,95 @@
 # Temporal FFCWS
 
-## 研究目标
+## Research Question
 
-本项目研究一个生命历程问题：随着儿童成长、可观察的生命史不断增加，以及研究者可用的数据规模不断扩大，未来结果在多大程度上会变得可预测？
+This project studies a life-course question: as children grow up, as their observable life history accumulates, and as the data available to researchers grow, to what extent do future outcomes become predictable?
 
-我们不把一次模型比赛或一个 GPA 示例当作最终研究对象。项目的主要经验对象是：**针对每一个结果变量，构建“联合数据规模 × 观察波次 × 样本外预测表现”的曲面。**
+We do not treat a single modeling competition or a single GPA example as the end object of study. The question breaks down as follows:
 
-三个维度分别是：
+1. At the end of each developmental stage, how well can future educational, psychological, economic, and family outcomes be predicted?
+2. As the number of training families $N$ and the number of predictors $K$ increase jointly, how does predictive performance scale, and when do diminishing marginal returns become evident?
+3. Does the improvement from adding an observation wave depend on data scale? In other words, does the information value of a given stage emerge only when there are enough samples and variables?
+4. Holding the observation point fixed and pushing the outcome age further out, how does predictability decay? Does information have a "shelf life"?
+5. For the same prediction horizon, does predictability differ between an earlier and a later segment of the life course?
+6. Do different outcomes behave differently? Do some plateau early while others continue to be shaped by later life experiences?
+7. Are the conclusions robust to model type and feature sampling?
+8. When the information set is fixed and the training sample grows, where does prediction error level off? Can that limit provide a credible upper bound on the unpredictability of life outcomes?
 
-- **联合数据规模**：训练家庭数 \(N\) 与可用预测变量数 \(K\) 按预先规定的路径共同增加，例如从 \((N_{\min},K_{\min})\) 逐步走到 \((N_{\max},K_{\max})\)。这个轴表示研究者拥有的数据资源从少到多，而不是单独的 \(N\) 或 \(K\)。
-- **观察波次**：模型只能使用截至某个年龄已经观察到的信息。当前年龄 15 结果的设计使用出生、1、3、5、9 岁五个截止点，并保证信息集随年龄严格嵌套。
-- **预测表现**：在预定义测试样本上计算的样本外误差、解释度或归一化不可预测性。每个结果变量单独形成一张曲面。
+This project studies predictive structure and upper bounds on unpredictability. It does not interpret these relationships as causal effects.
 
-记联合规模档位为 \(b\)，它对应一对 \((N_b,K_b)\)。对结果 \(Y_s\) 和观察截止年龄 \(t\)，主要描述性对象可以写为：
+## Experimental Design
 
-\[
-P_Y(t,b)=\operatorname{Performance}\bigl(Y_s\mid H_{\le t},N_b,K_b\bigr).
-\]
+### Data
 
-这张曲面同时展示两种变化：沿波次方向，研究者获得了更多生命史；沿规模方向，研究者拥有更多家庭和更多变量。它让我们观察预测能力何时出现、何时快速改善，以及何时进入平台期。
+The data come from the Fragile Families and Child Wellbeing Study (FFCWS), a US birth cohort followed from birth through ages 1, 3, 5, 9, 15, and 22. The age-15 outcomes are those of the Fragile Families Challenge: GPA, grit, material hardship, eviction, caregiver layoff, and job training.
 
-## 核心研究问题
+### The Predictability Surface
 
-1. 在不同成长阶段结束时，未来教育、心理、经济与家庭结果能够被预测到什么程度？
-2. 当 \(N\) 和 \(K\) 联动增加时，预测表现如何扩展，何时出现明显的边际收益递减？
-3. 新增一个观察波次带来的改善，是否会随着数据规模变化？换言之，某一阶段的信息价值是否只有在样本和变量足够多时才显现？
-4. 不同结果变量的曲面形状是否不同：有些结果是否很早便达到平台，而另一些结果持续受到后续生命经历影响？
-5. 研究结论是否对模型类型和特征抽样具有稳健性？
-6. 当固定信息集并增加训练样本时，预测误差的极限在哪里？这个极限能否为生命结果的不可预测性提供可信上界？
+The main empirical object is **a surface over joint data scale × observation wave × outcome age × out-of-sample predictive performance**, built separately for each outcome construct. The four dimensions are:
 
-本项目研究的是预测性结构和不可预测性上界，不把这些关系解释为因果效应。
+- **Joint data scale**: $N$ and $K$ increase together along a pre-specified path, for example from $(N_{\min},K_{\min})$ step by step to $(N_{\max},K_{\max})$. This axis represents the researcher's data resources growing from scarce to abundant; it is not $N$ or $K$ alone.
+- **Observation wave** $t$: the model may use only information already observed by a given age. The available cutoffs are birth and ages 1, 3, 5, 9, and 15. Under the cumulative scheme, the information sets are strictly nested by age.
+- **Outcome age** $T$: the age at which the predicted outcome is measured, subject to $t < T$. This axis exists only when the same construct is measured repeatedly at several values of $T$.
+- **Predictive performance**: out-of-sample error, explained variance, or normalized unpredictability, computed on a predefined test sample.
 
-## 两类互补的分析对象
+Let $b$ index the joint scale levels, each corresponding to a pair $(N_b,K_b)$. The surface can be written as:
 
-### 1. 联合规模曲面
+$$
+P_Y(t,T,b)=\operatorname{Performance}\bigl(Y_T\mid H_{\le t},N_b,K_b\bigr).
+$$
 
-联合规模曲面是项目的主要描述性与展示性产物。正式运行应选择若干有序档位：
+The surface shows three kinds of change at once. Along the wave direction, the researcher gains more life history. Along the scale direction, the researcher has more families and more variables. Along the outcome-age direction, the predicted event lies further from the observation point. Horizontal, vertical, diagonal (fixed horizon $T-t$), and matched-$K$ comparisons are all slice queries on the same surface, not separate experiments.
+
+Because the four axes multiply, the surface is necessarily **sampled** rather than filled in. Every run declares in advance which slices it covers and why.
+
+### Joint Scale Levels
+
+A formal run chooses several ordered scale levels:
 
 ```text
-规模档位 1      (N1, K1)
-规模档位 2      (N2, K2)
+Scale level 1   (N1, K1)
+Scale level 2   (N2, K2)
 ...             ...
-规模档位 B      (Nmax, Kmax)
+Scale level B   (Nmax, Kmax)
 ```
 
-同一组规模档位在各观察波次重复评估，形成规则网格。\(N\) 和 \(K\) 通常在对数尺度上共同增长，以便低数据区和高数据区都有足够分辨率。
+The same set of scale levels is evaluated at every observation wave, forming a regular grid. $N$ and $K$ usually grow together on a log scale so that both the low-data and the high-data regions have enough resolution.
 
-联合路径回答的是“数据资源整体增加时会怎样”。因为 \(N\) 和 \(K\) 同时变化，它本身不区分改善究竟来自更多家庭还是更多变量。
+The joint path answers the question "what happens when data resources grow overall?" Because $N$ and $K$ change together, the path by itself cannot tell whether an improvement comes from more families or from more variables.
 
-### 2. 固定条件的诊断切片
+### Fixed-Condition Diagnostic Slices
 
-为了支持统计解释，主曲面之外还需保留少量诊断切片：
+To support statistical interpretation, a small number of diagnostic slices are kept alongside the main surface:
 
-- 固定 \(K\)、改变 \(N\)：估计学习曲线、检查有限样本偏差，并在外推可信时估计渐近误差。
-- 固定 \(N\)、改变 \(K\)：判断增加变量是否仍有增量价值。
-- 跨波次匹配相同 \(K\)：区分“出现了新的生命史信息”和“单纯使用了更多变量”。
+- Fix $K$, vary $N$: estimate learning curves, check finite-sample bias, and estimate the asymptotic error when extrapolation is credible.
+- Fix $N$, vary $K$: determine whether adding variables still yields incremental value.
+- Match $K$ across waves: separate "new life-history information has appeared" from "more variables were simply used". **Comparing along $t$ at each wave's full $K$ describes the overall expansion of the data and cannot substitute for this slice.**
+- Fix the construct, vary $T$: all values of $T$ share one analysis sample and one train–test split; otherwise, longitudinal differences cannot be separated from changes in sample composition.
 
-因此，联合曲面负责呈现完整现象，固定条件切片负责解释曲面并验证结论。二者不是互相替代的设计。
+### Composition Experiments
 
-## 与不可预测性曲线的关系
+A separate class of experiments changes which pool the variables come from, not the values of $N$, $K$, $t$, or $T$. Examples are using only a wave's own variables (snapshot) and removing one category of items by content (ablation). These experiments lie outside the surface: each is built as its own feature set and reported as a diagnostic, never plotted as an additional unpredictability curve alongside the surface slices.
 
-对于结果年龄 \(s\)，理论目标是：
+The joint surface presents the full phenomenon, while the diagnostic slices and composition experiments explain the surface and validate the conclusions. The three are not substitutes for one another.
 
-\[
+### From Prediction Error to an Unpredictability Bound
+
+For outcome age $s$, the theoretical target is:
+
+$$
 U(t,s)=\frac{\mathbb{E}[\operatorname{Var}(Y_s\mid H_{\le t})]}{\operatorname{Var}(Y_s)}.
-\]
+$$
 
-它表示站在年龄 \(t\) 时、掌握截至该时点的生命史后，年龄 \(s\) 的结果仍有多少比例的方差无法预测。随着信息集增加，真实的 \(U(t,s)\) 应当不升。
+$U(t,s)$ is the fraction of the variance of the age-$s$ outcome that remains unpredictable at age $t$, given the life history observed up to that age. As the information set grows, the true $U(t,s)$ should not increase.
 
-有限数据下观测到的预测误差不仅包含结果本身的不可预测性，也包含样本不足、变量不足和模型学习不充分。因此，联合规模曲面不能直接被称为 \(U(t,s)\)。只有在固定信息集的学习曲线通过外推自检后，其渐近误差才作为 \(U(t,s)\) 的经验上界报告；原始估计与单调化估计必须同时保留。
+With finite data, the observed prediction error contains not only the inherent unpredictability of the outcome but also the effects of too few samples, too few variables, and incomplete model learning. The joint-scale surface therefore cannot be called $U(t,s)$ directly. Only when a learning curve with a fixed information set passes the extrapolation self-check is its asymptotic error reported as an empirical upper bound on $U(t,s)$. Both the raw estimate and the monotonized estimate are retained.
 
-## 研究推进层次
+### Stages
 
-### 当前方法 demo
+**1. Method demo.** Outcome: GPA at age 15. Observation cutoffs: birth and ages 1, 3, 5, and 9. The demo tests whether the wave partition, fixed-$K$ learning curves, the asymptote self-check, and figure interpretation work in practice, and supplies the estimation and diagnostic components for the joint surface. It is a method validation, not the research goal.
 
-- 结果年龄：15 岁
-- 结果变量：GPA
-- 观察截止年龄：出生、1、3、5、9 岁
-- 目的：验证波次划分、固定 \(K\) 学习曲线、渐近线自检和图形判读是否可行，并为后续联合 N–K 规模曲面提供可靠的估计与诊断组件。
+**2. Age-15 multi-outcome study.** The design extends to all six Challenge outcomes and formally adds the linked $N$–$K$ scale axis. Each outcome gets its own surface, diagnostic slices, and unpredictability upper bound. Raw errors and $U$ levels are not simply ranked across outcomes, because the outcomes differ in scale and measurement.
 
-这个 demo 是方法验证和第一份沟通产物，不是整个项目的研究目标。
+**3. Life-course extension.** Outcome age becomes an axis: the same construct is measured at ages 9, 15, and 22, the observation cutoffs extend to age 15, and the analysis covers the full $(t,T)$ grid. Outcome constructs, data availability, attrition, and measurement comparability are checked anew rather than carried over from the demo.
 
-### 年龄 15 多结果研究
-
-在 demo 通过后，把设计扩展到当前 Fragile Families Challenge 的六个结果：GPA、grit、家庭物质困难、家庭驱逐、照护者失业和职业培训。该阶段正式加入联动的 N–K 规模轴；每个结果分别生成曲面、诊断切片和不可预测性上界。不同结果的原始误差或 \(U\) 高度不作简单横向排名。
-
-### 后续生命历程扩展
-
-进一步使用年龄 22 结果，把观察截止点扩展到 15 岁，研究更完整的生命历程不可预测性曲线及相邻阶段的变化。该阶段需要单独确认结果构念、数据可用性、样本流失和测量可比性，不能直接照搬 demo 的实现假设。
-
-## 当前工作区
-
-- `AGENTS.md`：Codex 自动加载的仓库工作流入口和硬约束。
-- `CLAUDE.md`：Claude Code 入口，指向与 Codex 共用的规范。
-- `.system/SYSTEM_PROMPT.md`：跨平台复用的详细 SDD 方法论。
-- `project/`：可运行的 FFCWS 数据适配器、配置、schema 和测试。
-- `plans/`：当前 demo、图形层和长期扩展的详细设计附件。
-- `reports/`：研究交付物、方法说明与判读记录。
-- `ARCHITECTURE.md`：代码边界、依赖规则和不可违反的数据契约。
-- `ROADMAP.md`：从 demo 到多结果研究和后续扩展的实施顺序。
-- `TESTS.md`：质量门槛和研究设计验证要求。
-
-现有代码已经能够为六个年龄 15 结果生成分析输入（特征表示固定为 `median_mode` 一种），但按波次构造信息集、联合 N–K 规模路径、学习曲线分析和研究图形仍属于后续实现工作。
-
-N×K 扫描引擎 `aleatoric_nk_grid` 作为外部依赖，由 [`project/requirements.txt`](project/requirements.txt) 固定到具体 commit，其源码不在本仓库内。运行方式见 [`project/README.md`](project/README.md)。
+**The outcome-age axis places a hard constraint on constructs**: comparisons across $T$ require the same scale, the same scoring rule, and the same reporter. Among the six Challenge outcomes, only household material hardship meets this requirement (its 11-item battery is worded identically at ages 9, 15, and 22). The other outcomes either exist at a single time point or change construct and reporter across ages. This axis therefore applies to fewer outcomes than the other three axes.
